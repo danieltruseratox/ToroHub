@@ -1,58 +1,211 @@
 -- =============================================================================
--- 1. CARGAR LA LIBRERÍA DE INTERFAZ GRÁFICA (KAVO UI)
+-- BASE DE LA INTERFAZ GRÁFICA (GUI UNIFICADA)
 -- =============================================================================
-local Library = loadstring(game:HttpGet("https://githubusercontent.com"))()
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+
+local JugadorLocal = Players.LocalPlayer
+local Mouse = JugadorLocal:GetMouse()
+
+-- Evitar duplicados del menú
+if CoreGui:FindFirstChild("VisualCombatHub") then
+    CoreGui.VisualCombatHub:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "VisualCombatHub"
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
+
+-- Panel Principal
+local FramePrincipal = Instance.new("Frame")
+FramePrincipal.Size = UDim2.new(0, 220, 0, 230)
+FramePrincipal.Position = UDim2.new(0, 20, 0, 120)
+FramePrincipal.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+FramePrincipal.Active = true
+FramePrincipal.Draggable = true
+FramePrincipal.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = FramePrincipal
+
+-- Título
+local Titulo = Instance.new("TextLabel")
+Titulo.Size = UDim2.new(1, 0, 0, 40)
+Titulo.BackgroundTransparency = 1
+Titulo.Text = "⚡ COMBAT & VISUAL HUB"
+Titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
+Titulo.TextSize = 13
+Titulo.Font = Enum.Font.SourceSansBold
+Titulo.Parent = FramePrincipal
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = FramePrincipal
+UIListLayout.Padding = UDim.new(0, 8)
+UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local Espacio = Instance.new("Frame")
+Espacio.Size = UDim2.new(1, 0, 0, 35)
+Espacio.BackgroundTransparency = 1
+Espacio.Parent = FramePrincipal
+
+-- Función constructora de botones
+local function CrearBoton(texto, colorBase)
+    local Boton = Instance.new("TextButton")
+    Boton.Size = UDim2.new(0, 190, 0, 35)
+    Boton.BackgroundColor3 = colorBase
+    Boton.Text = texto
+    Boton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Boton.Font = Enum.Font.SourceSansBold
+    Boton.TextSize = 14
+    Boton.Parent = FramePrincipal
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.Parent = Boton
+    return Boton
+end
 
 -- =============================================================================
--- 2. CREAR LA VENTANA PRINCIPAL (Elige el tema de colores: DarkTheme, Midnight, etc.)
+-- 🎯 1. LÓGICA DEL AIMBOT UNIVERSAL
 -- =============================================================================
-local Ventana = Library.CreateLib("MI PRIMER SCRIPT HUB 🌟", "DarkTheme")
+local BotonAimbot = CrearBoton("🎯 Aimbot: DESACTIVADO", Color3.fromRGB(150, 40, 40))
+local AimbotActivo = false
 
--- =============================================================================
--- 3. CREAR LAS PESTAÑAS (Secciones del Menú)
--- =============================================================================
-local PestanaCombate = Ventana:NewTab("🎯 Combate")
-local PestanaVisuales = Ventana:NewTab("👁️ Visuales")
+local function ObtenerJugadorMasCercano()
+    local Objetivo = nil
+    local DistanciaMaxima = math.huge
+    local Camara = workspace.CurrentCamera
+    
+    for _, Jugador in pairs(Players:GetPlayers()) do
+        if Jugador ~= JugadorLocal and Jugador.Character and Jugador.Character:FindFirstChild("HumanoidRootPart") and Jugador.Character:FindFirstChild("Humanoid") then
+            if Jugador.Character.Humanoid.Health > 0 then
+                local PosicionPantalla, EnPantalla = Camara:WorldToScreenPoint(Jugador.Character.HumanoidRootPart.Position)
+                if EnPantalla then
+                    local DistanciaMouse = (Vector2.new(Mouse.X, Mouse.Y) - Vector2.new(PosicionPantalla.X, PosicionPantalla.Y)).Magnitude
+                    if DistanciaMouse < DistanciaMaxima then
+                        DistanciaMaxima = DistanciaMouse
+                        Objetivo = Jugador.Character.HumanoidRootPart
+                    end
+                end
+            end
+        end
+    end
+    return Objetivo
+end
 
--- SECCIONES INTERNAS (Para ordenar los botones dentro de cada pestaña)
-local SeccionAimbot = PestanaCombate:NewSection("Asistencias de Apuntado")
-local SeccionFisicas = PestanaCombate:NewSection("Físicas y Ventajas")
-local SeccionMundo = PestanaVisuales:NewSection("Modificadores del Mapa")
-
--- =============================================================================
--- 4. CREAR LOS BOTONES Y TOGGLES (Aquí conectas tu código)
--- =============================================================================
-
--- Ejemplo A: Un Botón de un solo clic (Action Button)
-SeccionMundo:NewButton("☀️ Forzar Día HD", "Cambia el cielo a las 2 PM de inmediato", function()
-    -- AQUÍ ADENTRO PEGAS EL CÓDIGO DE DÍA QUE HICIMOS ANTES
-    game:GetService("Lighting").ClockTime = 14
-    game:GetService("Lighting").Brightness = 3
-    print("¡El Hub cambió el clima a Día!")
-end)
-
--- Ejemplo B: Un interruptor de Encendido/Apagado (Toggle)
-SeccionAimbot:NewToggle("🎯 Activar Aimbot", "Fija la cámara en el enemigo más cercano", function(Estado)
-    if Estado then
-        -- AQUÍ COLOCAS LO QUE PASA CUANDO SE ENCIENDE
-        print("Aimbot del Hub: ACTIVADO")
-    else
-        -- AQUÍ COLOCAS LO QUE PASA CUANDO SE APAGA
-        print("Aimbot del Hub: DESACTIVADO")
+RunService.RenderStepped:Connect(function()
+    if AimbotActivo then
+        local Target = ObtenerJugadorMasCercano()
+        if Target then
+            workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, Target.Position)
+        end
     end
 end)
 
--- Ejemplo C: Un control deslizante (Slider) para valores numéricos
-SeccionFisicas:NewSlider("⚡ Velocidad (WalkSpeed)", "Ajusta la velocidad de tu avatar", 100, 16, function(Valor)
-    -- El '100' es el máximo, el '16' es el mínimo (Default de Roblox)
-    local Character = game.Players.LocalPlayer.Character
-    if Character and Character:FindFirstChild("Humanoid") then
-        Character.Humanoid.WalkSpeed = Valor
-    end
+BotonAimbot.MouseButton1Click:Connect(function()
+    AimbotActivo = not AimbotActivo
+    BotonAimbot.Text = AimbotActivo and "🎯 Aimbot: ACTIVADO" or "🎯 Aimbot: DESACTIVADO"
+    BotonAimbot.BackgroundColor3 = AimbotActivo and Color3.fromRGB(40, 150, 40) or Color3.fromRGB(150, 40, 40)
 end)
 
--- Ejemplo D: Un selector de Teclas (Keybind) para ocultar el Hub
-local SeccionAjustes = Ventana:NewTab("⚙️ Ajustes"):NewSection("Controles")
-SeccionAjustes:NewKeybind("Ocultar Menú", "Presiona la tecla para cerrar el menú", Enum.KeyCode.RightControl, function()
-    Library:ToggleUI() -- Abre y cierra la interfaz visual automáticamente
+-- =============================================================================
+-- 👁️ 2. LÓGICA DEL ESP (WALLHACK - CAJAS Y LÍNEAS)
+-- =============================================================================
+local BotonESP = CrearBotor or CrearBoton("👁️ ESP: DESACTIVADO", Color3.fromRGB(150, 40, 40))
+local ESPActivo = false
+local ContenedorESP = {}
+
+local function CrearESP(jugador)
+    if jugador == JugadorLocal then return end
+    
+    local Box = Drawing.new("Square")
+    Box.Visible = false
+    Box.Color = Color3.fromRGB(255, 0, 0)
+    Box.Thickness = 1.5
+    Box.Filled = false
+    
+    local Linea = Drawing.new("Line")
+    Linea.Visible = false
+    Linea.Color = Color3.fromRGB(255, 255, 255)
+    Linea.Thickness = 1
+    
+    ContenedorESP[jugador] = {Box = Box, Linea = Linea}
+    
+    local Conectado
+    Conectado = RunService.RenderStepped:Connect(function()
+        if not ESPActivo or not jugador.Parent or not jugador.Character or not jugador.Character:FindFirstChild("HumanoidRootPart") or not jugador.Character:FindFirstChild("Humanoid") or jugador.Character.Humanoid.Health <= 0 then
+            Box.Visible = false
+            Linea.Visible = false
+            if not jugador.Parent then Conectado:Disconnect() end
+            return
+        end
+        
+        local Camara = workspace.CurrentCamera
+        local RootPart = jugador.Character.HumanoidRootPart
+        local Pos, EnPantalla = Camara:WorldToScreenPoint(RootPart.Position)
+        
+        if EnPantalla then
+            -- Dibujar Caja Alrededor del Enemigo
+            Box.Size = Vector2.new(1000 / Pos.Z, 1500 / Pos.Z)
+            Box.Position = Vector2.new(Pos.X - Box.Size.X / 2, Pos.Y - Box.Size.Y / 2)
+            Box.Visible = true
+            
+            -- Dibujar Línea de Rastreo (Desde el centro inferior de tu pantalla)
+            Linea.From = Vector2.new(Camara.ViewportSize.X / 2, Camara.ViewportSize.Y)
+            Linea.To = Vector2.new(Pos.X, Pos.Y)
+            Linea.Visible = true
+        else
+            Box.Visible = false
+            Linea.Visible = false
+        end
+    end)
+end
+
+Players.PlayerAdded:Connect(CrearESP)
+for _, p in pairs(Players:GetPlayers()) do CrearESP(p) end
+
+BotonESP.MouseButton1Click:Connect(function()
+    ESPActivo = not ESPActivo
+    BotonESP.Text = ESPActivo and "👁️ ESP: ACTIVADO" or "👁️ ESP: DESACTIVADO"
+    BotonESP.BackgroundColor3 = ESPActivo and Color3.fromRGB(40, 150, 40) or Color3.fromRGB(150, 40, 40)
 end)
+
+-- =============================================================================
+-- ☀️ 3. LÓGICA DE DÍA DIURNO HD
+-- =============================================================================
+local BotonDia = CrearBoton("☀️ Forzar Día HD", Color3.fromRGB(70, 70, 90))
+
+BotonDia.MouseButton1Click:Connect(function()
+    Lighting.ClockTime = 14
+    Lighting.Brightness = 3
+    Lighting.OutdoorAmbient = Color3.fromRGB(130, 130, 140)
+    
+    local NuevoCielo = Instance.new("Sky")
+    NuevoCielo.SkyboxBk = "rbxassetid://6444884337"
+    NuevoCielo.SkyboxDn = "rbxassetid://6444884784"
+    NuevoCielo.SkyboxFt = "rbxassetid://6444884214"
+    NuevoCielo.SkyboxLf = "rbxassetid://6444884112"
+    NuevoCielo.SkyboxRt = "rbxassetid://6444883979"
+    NuevoCielo.SkyboxUp = "rbxassetid://6444884545"
+    NuevoCielo.Parent = Lighting
+
+    local Atmosfera = Instance.new("Atmosphere")
+    Atmosfera.Density = 0.25
+    Atmosfera.Color = Color3.fromRGB(190, 220, 255)
+    Atmosfera.Parent = Lighting
+    
+    local ColorFiltro = Instance.new("ColorCorrectionEffect")
+    ColorFiltro.Saturation = 0.25
+    ColorFiltro.Parent = Lighting
+    
+    BotonDia.Text = "☀️ ¡Visuales Diurnos OK!"
+    task.wait(1.5)
+    BotonDia.Text = "☀️ Forzar Día HD"
+end)
+
+print("Script Unificado [Aimbot + ESP + Día] cargado correctamente.")
+
