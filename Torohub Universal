@@ -1,0 +1,58 @@
+-- =============================================================================
+-- 1. CARGAR LA LIBRERÍA DE INTERFAZ GRÁFICA (KAVO UI)
+-- =============================================================================
+local Library = loadstring(game:HttpGet("https://githubusercontent.com"))()
+
+-- =============================================================================
+-- 2. CREAR LA VENTANA PRINCIPAL (Elige el tema de colores: DarkTheme, Midnight, etc.)
+-- =============================================================================
+local Ventana = Library.CreateLib("MI PRIMER SCRIPT HUB 🌟", "DarkTheme")
+
+-- =============================================================================
+-- 3. CREAR LAS PESTAÑAS (Secciones del Menú)
+-- =============================================================================
+local PestanaCombate = Ventana:NewTab("🎯 Combate")
+local PestanaVisuales = Ventana:NewTab("👁️ Visuales")
+
+-- SECCIONES INTERNAS (Para ordenar los botones dentro de cada pestaña)
+local SeccionAimbot = PestanaCombate:NewSection("Asistencias de Apuntado")
+local SeccionFisicas = PestanaCombate:NewSection("Físicas y Ventajas")
+local SeccionMundo = PestanaVisuales:NewSection("Modificadores del Mapa")
+
+-- =============================================================================
+-- 4. CREAR LOS BOTONES Y TOGGLES (Aquí conectas tu código)
+-- =============================================================================
+
+-- Ejemplo A: Un Botón de un solo clic (Action Button)
+SeccionMundo:NewButton("☀️ Forzar Día HD", "Cambia el cielo a las 2 PM de inmediato", function()
+    -- AQUÍ ADENTRO PEGAS EL CÓDIGO DE DÍA QUE HICIMOS ANTES
+    game:GetService("Lighting").ClockTime = 14
+    game:GetService("Lighting").Brightness = 3
+    print("¡El Hub cambió el clima a Día!")
+end)
+
+-- Ejemplo B: Un interruptor de Encendido/Apagado (Toggle)
+SeccionAimbot:NewToggle("🎯 Activar Aimbot", "Fija la cámara en el enemigo más cercano", function(Estado)
+    if Estado then
+        -- AQUÍ COLOCAS LO QUE PASA CUANDO SE ENCIENDE
+        print("Aimbot del Hub: ACTIVADO")
+    else
+        -- AQUÍ COLOCAS LO QUE PASA CUANDO SE APAGA
+        print("Aimbot del Hub: DESACTIVADO")
+    end
+end)
+
+-- Ejemplo C: Un control deslizante (Slider) para valores numéricos
+SeccionFisicas:NewSlider("⚡ Velocidad (WalkSpeed)", "Ajusta la velocidad de tu avatar", 100, 16, function(Valor)
+    -- El '100' es el máximo, el '16' es el mínimo (Default de Roblox)
+    local Character = game.Players.LocalPlayer.Character
+    if Character and Character:FindFirstChild("Humanoid") then
+        Character.Humanoid.WalkSpeed = Valor
+    end
+end)
+
+-- Ejemplo D: Un selector de Teclas (Keybind) para ocultar el Hub
+local SeccionAjustes = Ventana:NewTab("⚙️ Ajustes"):NewSection("Controles")
+SeccionAjustes:NewKeybind("Ocultar Menú", "Presiona la tecla para cerrar el menú", Enum.KeyCode.RightControl, function()
+    Library:ToggleUI() -- Abre y cierra la interfaz visual automáticamente
+end)
