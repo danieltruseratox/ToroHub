@@ -1,5 +1,4 @@
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
 local UserInputService = game:GetService("UserInputService")
@@ -12,23 +11,14 @@ local cfg = {
     Aimbot = false,
     FullBright = false,
     ESP = false,
-    ClickToTP = false,
-    ClickToTPMode = "ToClick" -- "ToClick" or "ToPlayer"
+    ClickToTP = false -- modo único: teletransportar a jugador cercano por clic
 }
-
-local lock = false
-local target = nil
-local menuOpen = true
-
-local teclaOcultarMenu = Enum.KeyCode.KeypadThree
-local teclaAimbot = Enum.KeyCode.F
-local teclaClickToTeleport = Enum.KeyCode.T
 
 local originalShadows = Lighting.GlobalShadows
 local originalAmbient = Lighting.Ambient
 
 --------------------------------------------------------------------------------
--- UI
+-- UI (simplificada)
 --------------------------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ToroHubTradicionalGui"
@@ -36,7 +26,7 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 240, 0, 300) -- aumentado para espacio del botón de modo
+MainFrame.Size = UDim2.new(0, 240, 0, 250)
 MainFrame.Position = UDim2.new(0.1, 0, 0.3, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
@@ -50,15 +40,11 @@ MainCorner.Parent = MainFrame
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -40, 0, 40)
 TitleLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-TitleLabel.Text = "⚡ TORO HUB V15 ⚡"
+TitleLabel.Text = "⚡ TORO HUB - TP ÚNICO ⚡"
 TitleLabel.TextColor3 = Color3.new(1, 1, 1)
 TitleLabel.Font = Enum.Font.SourceSansBold
 TitleLabel.TextSize = 16
 TitleLabel.Parent = MainFrame
-
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 10)
-TitleCorner.Parent = TitleLabel
 
 local CloseButton = Instance.new("TextButton")
 CloseButton.Size = UDim2.new(0, 40, 0, 40)
@@ -72,39 +58,6 @@ CloseButton.Parent = MainFrame
 
 CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
-end)
-
---------------------------------------------------------------------------------
--- Dragging
---------------------------------------------------------------------------------
-local dragging = false
-local dragStart
-local startPos
-
-MainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-    end
-end)
-
-MainFrame.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-    end
 end)
 
 --------------------------------------------------------------------------------
@@ -143,30 +96,8 @@ local function getClosestTargetToCursor()
     return closest
 end
 
-local function getClosestPlayerOverall()
-    local myRoot = getRoot(LocalPlayer.Character)
-    if not myRoot then return nil end
-
-    local closest = nil
-    local bestDist = math.huge
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-            local root = getRoot(player.Character)
-            if humanoid and humanoid.Health > 0 and root then
-                local dist = (myRoot.Position - root.Position).Magnitude
-                if dist < bestDist then
-                    bestDist = dist
-                    closest = root
-                end
-            end
-        end
-    end
-    return closest
-end
-
 --------------------------------------------------------------------------------
--- Toggle Buttons
+-- Botones / Toggles
 --------------------------------------------------------------------------------
 local function createToggleButton(configKey, text, y)
     local button = Instance.new("TextButton")
@@ -200,83 +131,29 @@ local function createToggleButton(configKey, text, y)
     return button
 end
 
-createToggleButton("Aimbot", "🎯 Habilitar Aimbot", 55)
-createToggleButton("FullBright", "💡 FullBright", 100)
-createToggleButton("ESP", "👁️ Ver Jugadores (ESP)", 145)
-createToggleButton("ClickToTP", "🌀 Click to TP (Click/Player)", 190)
-
--- Botón para cambiar modo de TP (ToClick <-> ToPlayer)
-local modeButton = Instance.new("TextButton")
-modeButton.Size = UDim2.new(0, 210, 0, 30)
-modeButton.Position = UDim2.new(0, 15, 0, 235)
-modeButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-modeButton.Text = "Modo TP: Posición (ToClick)"
-modeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-modeButton.Font = Enum.Font.SourceSans
-modeButton.TextSize = 14
-modeButton.Parent = MainFrame
-
-local modeCorner = Instance.new("UICorner")
-modeCorner.CornerRadius = UDim.new(0, 6)
-modeCorner.Parent = modeButton
-
-modeButton.MouseButton1Click:Connect(function()
-    if cfg.ClickToTPMode == "ToClick" then
-        cfg.ClickToTPMode = "ToPlayer"
-        modeButton.Text = "Modo TP: Jugador (ToPlayer)"
-    else
-        cfg.ClickToTPMode = "ToClick"
-        modeButton.Text = "Modo TP: Posición (ToClick)"
-    end
-end)
+createToggleButton("ClickToTP", "🌀 Click to TP (a jugador cercano)", 100)
 
 --------------------------------------------------------------------------------
--- Inputs
+-- Input: Teleport al clic -> jugador más cercano al cursor
 --------------------------------------------------------------------------------
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
 
-    if input.KeyCode == teclaAimbot and cfg.Aimbot then
-        lock = not lock
-        if not lock then
-            target = nil
-        end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and cfg.ClickToTP then
+        pcall(function()
+            local myRoot = getRoot(LocalPlayer.Character)
+            if not myRoot then return end
 
-    elseif input.KeyCode == teclaOcultarMenu then
-        menuOpen = not menuOpen
-        ScreenGui.Enabled = menuOpen
-
-    elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
-        -- CLICK TO TP principal: si está activo, al clickear hace la acción según el modo
-        if cfg.ClickToTP then
-            pcall(function()
-                local myRoot = getRoot(LocalPlayer.Character)
-                if not myRoot then return end
-
-                if cfg.ClickToTPMode == "ToClick" then
-                    -- TP a la posición clickeada (si hay hit)
-                    if Mouse and Mouse.Hit then
-                        local pos = Mouse.Hit.Position + Vector3.new(0, 3, 0)
-                        myRoot.CFrame = CFrame.new(pos)
-                    end
-                else
-                    -- TP al jugador más cercano al cursor
-                    local tgtRoot = getClosestTargetToCursor()
-                    if not tgtRoot then
-                        -- fallback: el más cercano overall
-                        tgtRoot = getClosestPlayerOverall()
-                    end
-                    if tgtRoot and tgtRoot.Position then
-                        myRoot.CFrame = CFrame.new(tgtRoot.Position + Vector3.new(0, 3, 0))
-                    end
-                end
-            end)
-        end
+            local tgt = getClosestTargetToCursor()
+            if tgt and tgt.Position then
+                myRoot.CFrame = CFrame.new(tgt.Position + Vector3.new(0, 3, 0))
+            end
+        end)
     end
 end)
 
 --------------------------------------------------------------------------------
--- Effects and Loop
+-- Loop: Fullbright y ESP opcionales
 --------------------------------------------------------------------------------
 local fullBrightLight = Instance.new("PointLight")
 fullBrightLight.Range = 10000
@@ -286,20 +163,6 @@ fullBrightLight.Parent = Camera
 
 RunService.RenderStepped:Connect(function()
     pcall(function()
-        -- Aimbot
-        if cfg.Aimbot and lock then
-            if not target or not target.Parent or not target.Parent:FindFirstChildOfClass("Humanoid") or target.Parent.Humanoid.Health <= 0 then
-                target = getClosestTargetToCursor()
-            end
-
-            if target then
-                local lookDirection = (target.Position - Camera.CFrame.Position).Unit
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + lookDirection)
-            end
-        else
-            target = nil
-        end
-
         -- Fullbright
         fullBrightLight.Enabled = cfg.FullBright
         if cfg.FullBright then
@@ -310,7 +173,7 @@ RunService.RenderStepped:Connect(function()
             Lighting.Ambient = originalAmbient
         end
 
-        -- ESP
+        -- ESP (mantiene comportamiento anterior)
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
                 local highlight = player.Character:FindFirstChild("ESPHl")
