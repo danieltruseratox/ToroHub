@@ -1,245 +1,191 @@
-=============================================================================
--- ████████╗ ██████╗ ██████╗  ██████╗     ██╗  ██╗██╗   ██╗██████╗
+-- =============================================================================
+-- ████████╗ ██████╗ ██████╗  ██████╗     ██╗  ██╗██╗   ██╗██████╗ 
 -- ╚══██╔══╝██╔═══██╗██╔══██╗██╔═══██╗    ██║  ██║██║   ██║██╔══██╗
 --    ██║   ██║   ██║██████╔╝██║   ██║    ███████║██║   ██║██████╔╝
 --    ██║   ██║   ██║██╔══██╗██║   ██║    ██╔══██║██║   ██║██╔══██╗
---    ██║   ╚██████╔╝██║  ██║╚██████╔╝    ██║  ██║╚██████╔╝██████║
+--    ██║   ╚██████╔╝██║  ██║╚██████╔╝    ██║  ██║╚██████╔╝██║  ██║
 --    ╚═╝    ╚═════╝ ╚═╝  ╚═╝ ╚═════╝     ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝
 -- =============================================================================
--- Desarrollado y optimizado específicamente para Xeno Launcher.
--- Estructura modular asíncrona libre de recortes o lag por sobrecarga.
 
--- SERVICIOS NATIVOS DE ROBLOX
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
 local UserInputService = game:GetService("UserInputService")
 
--- VARIABLES INTERNAS DEL JUGADOR LOCAL Y CÁMARA
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-local VirtualMouse = LocalPlayer:GetMouse()
+local MouseNativo = LocalPlayer:GetMouse()
 
--- TABLA DE CONFIGURACIONES GENERALES (ESTADOS DE INTERRUPTORES)
-local HubConfig = {
-    AimbotHabilitado = false,
-    FullBrightHabilitado = false,
-    ESPHabilitado = false,
-    FlyHabilitado = false
-}
+-- CONFIGURACIÓN GENERAL (ESTADOS)
+local cfg = {Aimbot = false, FullBright = false, ESP = false, Fly = false}
+local lock, targ, open = false, nil, true
 
--- CONFIGURACIONES INTERNAS Y CONTROL DE TECLAS
-local AimbotFijadoActivo = false
-local ObjetivoActualAimbot = nil
-local MenuAbierto = true
+local TeclaOcultarMenu = Enum.KeyCode.KeypadThree
+local TeclaAimbot = Enum.KeyCode.F
+local TeclaClickToTeleport = Enum.KeyCode.T
 
-local TeclaOcultarMenu = Enum.KeyCode.KeypadThree -- Numeral 3 derecho
-local TeclaFijacionAimbot = Enum.KeyCode.F      -- Letra F para el candado
-local TeclaClickToTeleport = Enum.KeyCode.T     -- Letra T para TP por clic
+-- VALORES ORIGINALES
+local oS, oA = Lighting.GlobalShadows, Lighting.Ambient
+local oFogEnd, oFogStart = Lighting.FogEnd, Lighting.FogStart
+local flySpeed = 60
+local sosteniendoT = false
 
--- ALMACENAMIENTO DE VALORES ORIGINALES DEL SERVIDOR (Para restauración limpia)
-local OriginalGlobalShadows = Lighting.GlobalShadows
-local OriginalAmbient = Lighting.Ambient
-local OriginalOutdoorAmbient = Lighting.OutdoorAmbient
-local OriginalFogEnd = Lighting.FogEnd
-local OriginalFogStart = Lighting.FogStart
+-- INTERFAZ GRÁFICA
+local G = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+G.Name = "ToroHub" G.ResetOnSpawn = false
 
-local VelocidadVueloFija = 60
-local EstadoSosteniendoTeclaT = false
+local M = Instance.new("Frame", G)
+M.Size, M.Position, M.BackgroundColor3, M.Active = UDim2.new(0,220,0,280), UDim2.new(0.1,0,0.3,0), Color3.fromRGB(20,20,20), true
+Instance.new("UICorner", M).CornerRadius = UDim.new(0,8)
 
---------------------------------------------------------------------------------
--- 1. CONSTRUCCIÓN DE INTERFAZ GRÁFICA COMPLETA Y DETALLADA (GUI)
---------------------------------------------------------------------------------
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ToroHubPremiumGui"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+local T = Instance.new("TextLabel", M)
+T.Size, T.Text, T.BackgroundColor3, T.TextColor3, T.Font, T.TextSize = UDim2.new(1,-40,0,35), "⚡ TORO HUB V11 ⚡", Color3.fromRGB(30,30,30), Color3.fromRGB(255,255,255), Enum.Font.SourceSansBold, 14
+Instance.new("UICorner", T).CornerRadius = UDim.new(0,8)
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 230, 0, 320)
-MainFrame.Position = UDim2.new(0.05, 0, 0.3, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Parent = ScreenGui
+local X = Instance.new("TextButton", M)
+X.Size, X.Position, X.BackgroundColor3, X.Text, X.TextColor3, X.Font, X.TextSize = UDim2.new(0,35,0,35), UDim2.new(1,-35,0,0), Color3.fromRGB(180,40,40), "X", Color3.fromRGB(255,255,255), Enum.Font.SourceSansBold, 14
+Instance.new("UICorner", X).CornerRadius = UDim.new(0,8)
+X.MouseButton1Click:Connect(function() G:Destroy() end)
 
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 8)
-MainCorner.Parent = MainFrame
+local Pack = Instance.new("Frame", M)
+Pack.Size, Pack.Position, Pack.BackgroundTransparency = UDim2.new(1,0,1,-40), UDim2.new(0,0,0,40), 1
+local Lst = Instance.new("UIListLayout", Pack) Lst.Padding = UDim.new(0,5)
+Lst.HorizontalAlignment, Lst.VerticalAlignment = Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center
 
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Name = "TitleLabel"
-TitleLabel.Size = UDim2.new(1, -40, 0, 40)
-TitleLabel.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
-TitleLabel.Text = "⚡ TORO HUB UNIVERSAL ⚡"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.Font = Enum.Font.SourceSansBold
-TitleLabel.TextSize = 14
-TitleLabel.Parent = MainFrame
+-- ARRASTRE
+local drag, dragI, start, sPos
+M.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then drag, start, sPos = true, i.Position, M.Position end end)
+M.InputChanged:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseMovement then dragI = i end end)
+UIS.InputChanged:Connect(function(i) if i == dragI and drag then local d = i.Position-start; M.Position = UDim2.new(sPos.X.Scale, sPos.X.Offset+d.X, sPos.Y.Scale, sPos.Y.Offset+d.Y) end end)
+UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = false end end)
 
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 8)
-TitleCorner.Parent = TitleLabel
-
--- BOTÓN DE DESTRUCCIÓN DEL SCRIPT (X)
-local CloseButton = Instance.new("TextButton")
-CloseButton.Name = "CloseButton"
-CloseButton.Size = UDim2.new(0, 40, 0, 40)
-CloseButton.Position = UDim2.new(1, -40, 0, 0)
-CloseButton.BackgroundColor3 = Color3.fromRGB(170, 35, 35)
-CloseButton.Text = "X"
-CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.Font = Enum.Font.SourceSansBold
-CloseButton.TextSize = 15
-CloseButton.Parent = MainFrame
-
-local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 8)
-CloseCorner.Parent = CloseButton
-
-CloseButton.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-end)
-
-local ButtonsContainer = Instance.new("Frame")
-ButtonsContainer.Name = "ButtonsContainer"
-ButtonsContainer.Size = UDim2.new(1, 0, 1, -45)
-ButtonsContainer.Position = UDim2.new(0, 0, 0, 45)
-ButtonsContainer.BackgroundTransparency = 1
-ButtonsContainer.Parent = MainFrame
-
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Padding = UDim.new(0, 6)
-UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-UIListLayout.Parent = ButtonsContainer
-
---------------------------------------------------------------------------------
--- 2. SISTEMA MODERNO DE ARRASTRE DE MENÚ (DRAG)
---------------------------------------------------------------------------------
-local IsDraggingMenu = false
-local InputDragStart, DragStartFramePos
-
-local function UpdateMenuPosition(input)
-    local DeltaMovement = input.Position - InputDragStart
-    MainFrame.Position = UDim2.new(
-        DragStartFramePos.X.Scale, 
-        DragStartFramePos.X.Offset + DeltaMovement.X, 
-        DragStartFramePos.Y.Scale, 
-        DragStartFramePos.Y.Offset + DeltaMovement.Y
-    )
+-- DETECTOR DE RAÍZ
+local function getRoot(character)
+    if not character then return nil end
+    return character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")
 end
 
-MainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        IsDraggingMenu = true
-        InputDragStart = input.Position
-        DragStartFramePos = MainFrame.Position
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                IsDraggingMenu = false
-            end
-        end)
-    end
-end)
+-- TARGETING
+function GetT()
+    local obj, maxD, mP = nil, math.huge, UIS:GetMouseLocation()
+    for _,v in pairs(Players:GetPlayers()) do 
+        if v ~= LocalPlayer and v.Character and getRoot(v.Character) and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
+            local p, onS = Camera:WorldToScreenPoint(getRoot(v.Character).Position)
+            if onS then 
+                local d = (Vector2.new(mP.X, mP.Y) - Vector2.new(p.X, p.Y)).Magnitude
+                if d < maxD then maxD, obj = d, getRoot(v.Character) end 
+            end 
+        end 
+    end; return obj 
+end
 
-MainFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        if IsDraggingMenu then
-            UpdateMenuPosition(input)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 3. FUNCIÓN CREADORA DE INTERRUPTORES (TOGGLES DINÁMICOS)
---------------------------------------------------------------------------------
-local function CrearBotonToggle(ConfigKey, TextoVisible, FuncionAlActivar)
-    local TextButton = Instance.new("TextButton")
-    TextButton.Size = UDim2.new(0, 200, 0, 35)
-    TextButton.BackgroundColor3 = Color3.fromRGB(38, 38, 38)
-    TextButton.Text = TextoVisible .. ": OFF"
-    TextButton.TextColor3 = Color3.fromRGB(210, 55, 55)
-    TextButton.Font = Enum.Font.SourceSansBold
-    TextButton.TextSize = 13
-    TextButton.Parent = ButtonsContainer
-
-    local ButtonCorner = Instance.new("UICorner")
-    ButtonCorner.CornerRadius = UDim.new(0, 6)
-    ButtonCorner.Parent = TextButton
-
-    TextButton.MouseButton1Click:Connect(function()
-        HubConfig[ConfigKey] = not HubConfig[ConfigKey]
-        
-        if HubConfig[ConfigKey] then
-            TextButton.Text = TextoVisible .. ": ON"
-            TextButton.BackgroundColor3 = Color3.fromRGB(40, 130, 40)
-            TextButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            
-            if ConfigKey == "FullBrightHabilitado" then
-                pcall(function() FuncionAlActivar(true) end)
-            elseif FuncionAlActivar then
-                -- Para funciones instantáneas como el Teleport de un clic
-                pcall(FuncionAlActivar)
-                HubConfig[ConfigKey] = false
-                TextButton.Text = TextoVisible .. ": OFF"
-                TextButton.BackgroundColor3 = Color3.fromRGB(38, 38, 38)
-                TextButton.TextColor3 = Color3.fromRGB(210, 55, 55)
+-- OPTIMIZADOR INTEGRAL DE FPS
+local function AplicarOptimizarMundo(Activar)
+    pcall(function()
+        if Activar then
+            Lighting.FogEnd, Lighting.FogStart = 999999, 999999
+            for _, e in pairs(Lighting:GetChildren()) do if e:IsA("Clouds") or e:IsA("BlurEffect") or e:IsA("SunRaysEffect") or e:IsA("BloomEffect") then e.Enabled = false end end
+            for _, o in pairs(workspace:GetDescendants()) do
+                if not o:IsDescendantOf(LocalPlayer.Character) and not Players:GetPlayerFromCharacter(o.Parent) then
+                    if o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Smoke") or o:IsA("Sparkles") then o.Enabled = false 
+                    elseif o:IsA("Decal") or o:IsA("Texture") then if o.Name ~= "face" and not o.Parent:IsA("Shirt") and not o.Parent:IsA("Pants") then o.Transparency = 1 end end
+                end
             end
         else
-            TextButton.Text = TextoVisible .. ": OFF"
-            TextButton.BackgroundColor3 = Color3.fromRGB(38, 38, 38)
-            TextButton.TextColor3 = Color3.fromRGB(210, 55, 55)
-            
-            if ConfigKey == "FullBrightHabilitado" then
-                pcall(function() FuncionAlActivar(false) end)
-            elseif ConfigKey == "AimbotHabilitado" then
-                AimbotFijadoActivo = false
-                ObjetivoActualAimbot = nil
+            Lighting.FogEnd, Lighting.FogStart = oFogEnd, oFogStart
+            for _, e in pairs(Lighting:GetChildren()) do if e:IsA("Clouds") or e:IsA("BlurEffect") or e:IsA("SunRaysEffect") or e:IsA("BloomEffect") then e.Enabled = true end end
+            for _, o in pairs(workspace:GetDescendants()) do
+                if o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Smoke") or o:IsA("Sparkles") then o.Enabled = true 
+                elseif o:IsA("Decal") or o:IsA("Texture") then if o.Name ~= "face" then o.Transparency = 0 end end
             end
         end
     end)
 end
 
---------------------------------------------------------------------------------
--- 4. ALGORITMOS DE DETECCIÓN MATEMÁTICA (TARGETING)
---------------------------------------------------------------------------------
-function ObtenerJugadorMasCercanoAlCursor()
-    local ObjetivoSeleccionado = nil
-    local DistanciaMenorRegistrada = math.huge
-    local CoordenadasMouse = UserInputService:GetMouseLocation()
-
-    for _, Jugador in pairs(Players:GetPlayers()) do
-        if Jugador ~= LocalPlayer and Jugador.Character then
-            local RootPart = Jugador.Character:FindFirstChild("HumanoidRootPart")
-            local Humanoid = Jugador.Character:FindFirstChild("Humanoid")
-            
-            if RootPart and Humanoid and Humanoid.Health > 0 then
-                local PosicionPantalla, EnPantalla = Camera:WorldToScreenPoint(RootPart.Position)
-                
-                if EnPantalla then
-                    local CalculoDistancia = (Vector2.new(CoordenadasMouse.X, CoordenadasMouse.Y) - Vector2.new(PosicionPantalla.X, PosicionPantalla.Y)).Magnitude
-                    if CalculoDistancia < DistanciaMenorRegistrada then
-                        DistanciaMenorRegistrada = CalculoDistancia
-                        ObjetivoSeleccionado = RootPart
-                    end
-                end
-            end
+-- BOTONES
+local function cBtn(k, txt, func)
+    local b = Instance.new("TextButton", Pack)
+    b.Size, b.BackgroundColor3 = UDim2.new(0,190,0,32), Color3.fromRGB(40,40,40)
+    b.Text, b.TextColor3, b.Font, b.TextSize = txt..": OFF", Color3.fromRGB(220,60,60), Enum.Font.SourceSansBold, 13
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,6)
+    b.MouseButton1Click:Connect(function()
+        cfg[k] = not cfg[k]
+        if cfg[k] then 
+            b.Text, b.BackgroundColor3, b.TextColor3 = txt..": ON", Color3.fromRGB(45,140,45), Color3.fromRGB(255,255,255)
+            if k == "FullBright" then AplicarOptimizarMundo(true) end
+            if func then func() b.Text, b.BackgroundColor3, b.TextColor3 = txt..": OFF", Color3.fromRGB(40,40,40), Color3.fromRGB(220,60,60) cfg[k] = false end
+        else 
+            b.Text, b.BackgroundColor3, b.TextColor3 = txt..": OFF", Color3.fromRGB(40,40,40), Color3.fromRGB(220,60,60) 
+            if k == "FullBright" then AplicarOptimizarMundo(false) end
+            if k == "Aimbot" then lock, targ = false, nil end
         end
-    end
-    return ObjetivoSeleccionado
+    end)
 end
 
---------------------------------------------------------------------------------
--- 5. OPTIMIZADOR PROGRESIVO DE RENDIMIENTO DEL ENTORNO (FPS)
---------------------------------------------------------------------------------
-local function AlternarOptimizacionMundo(Habilitar)
-    if Habilitar then
-        Lighting.FogEnd = 999999
-        Lighting.FogStart = 999999
+cBtn("Aimbot", "🎯 Permitir Aimbot")
+cBtn("FullBright", "💡 Iluminación + FPS")
+cBtn("ESP", "👁️ Ver Jugadores (ESP)")
+cBtn("Fly", "🦅 Vuelo (Fly)")
+cBtn("Teleport", "🌀 Teleport Cercano", function()
+    local o = GetT() if o and getRoot(LocalPlayer.Character) then getRoot(LocalPlayer.Character).CFrame = o.CFrame * CFrame.new(0,4,0) end
+end)
+
+-- INPUTS GENERALES
+UIS.InputBegan:Connect(function(i,p) 
+    if not p then 
+        if i.KeyCode == TeclaAimbot and cfg.Aimbot then 
+            lock = not lock; if not lock then targ = nil end 
+        elseif i.KeyCode == TeclaOcultarMenu then 
+            open = not open; G.Enabled = open 
+        elseif i.KeyCode == TeclaClickToTeleport then
+            sosteniendoT = true
+        elseif i.UserInputType == Enum.UserInputType.MouseButton1 and sosteniendoT then
+            pcall(function()
+                if getRoot(LocalPlayer.Character) and MouseNativo.Hit then
+                    getRoot(LocalPlayer.Character).CFrame = CFrame.new(MouseNativo.Hit.Position + Vector3.new(0, 3, 0))
+                end
+            end)
+        end 
+    end 
+end)
+
+UIS.InputEnded:Connect(function(i) if i.KeyCode == TeclaClickToTeleport then sosteniendoT = false end end)
+
+-- FLY ESTÁTICO (SIN ANIMACIONES)
+task.spawn(function()
+    while true do
+        local dt = RunService.Heartbeat:Wait()
+        if cfg.Fly then
+            pcall(function()
+                local hrp, hum = getRoot(LocalPlayer.Character), LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                if hrp and hum then
+                    hum.PlatformStand = true
+                    local dir = Vector3.new(0,0,0)
+                    if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + Camera.CFrame.LookVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - Camera.CFrame.LookVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - Camera.CFrame.RightVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + Camera.CFrame.RightVector end
+                    hrp.CFrame = CFrame.new(hrp.Position + (dir * flySpeed * dt), hrp.Position + Camera.CFrame.LookVector * 100)
+                    hrp.Velocity = Vector3.new(0,0,0)
+                end
+            end)
+        else
+            pcall(function()
+                local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                if hum and hum.PlatformStand then hum.PlatformStand = false end
+            end)
+        end
+    end
+end)
+
+-- BUCLE DE RENDERIZADO PRINCIPAL
+local fL = Instance.new("PointLight", Camera) fL.Range, fL.Brightness, fL.Enabled = 10000, 3, false
+RunService.RenderStepped:Connect(function()
+    pcall(function()
+        if cfg.Aimbot and lock then 
+            if not targ or not targ.Parent or not targ.Parent:FindFirstChild("Humanoid") or targ.Parent.Humanoid.Health <= 0 then targ = GetT() end
+            if targ then Camera.CFrame = CFrame.new(Camera.CFrame.Position, targ.Position) end 
+        else targ = nil end
         
-        for _, Efecto in pairs(Lighting:GetChildren()) do
-pcall(IniciarAntiFling)
+        fL.Enabled = cfg.FullBright
