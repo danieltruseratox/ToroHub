@@ -1,211 +1,181 @@
--- =============================================================================
--- BASE DE LA INTERFAZ GRÁFICA (GUI UNIFICADA)
--- =============================================================================
-local CoreGui = game:GetService("CoreGui")
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
+local P = game:GetService("Players")
+local LP = P.LocalPlayer
+local Cam = workspace.CurrentCamera
+local UIS = game:GetService("UserInputService")
+local L = game:GetService("Lighting")
+local RS = game:GetService("RunService")
 
-local JugadorLocal = Players.LocalPlayer
-local Mouse = JugadorLocal:GetMouse()
+local cfg = {Aimbot = false, FullBright = false, ESP = false, Fly = false}
+local lock, targ, open = false, nil, true
+local oS, oA = L.GlobalShadows, L.Ambient
+local oFogEnd, oFogStart = L.FogEnd, L.FogStart
+local flySpeed = 60
 
--- Evitar duplicados del menú
-if CoreGui:FindFirstChild("VisualCombatHub") then
-    CoreGui.VisualCombatHub:Destroy()
+-- INTERFAZ COMPACTA
+local G = Instance.new("ScreenGui", LP:WaitForChild("PlayerGui"))
+G.Name = "ToroHub" G.ResetOnSpawn = false
+
+local M = Instance.new("Frame", G)
+M.Size, M.Position, M.BackgroundColor3, M.Active = UDim2.new(0,220,0,320), UDim2.new(0.1,0,0.3,0), Color3.fromRGB(20,20,20), true
+Instance.new("UICorner", M).CornerRadius = UDim.new(0,8)
+
+local T = Instance.new("TextLabel", M)
+T.Size, T.Text, T.BackgroundColor3, T.TextColor3, T.Font, T.TextSize = UDim2.new(1,-40,0,35), "⚡ TORO HUB V9 ⚡", Color3.fromRGB(30,30,30), Color3.fromRGB(255,255,255), Enum.Font.SourceSansBold, 14
+Instance.new("UICorner", T).CornerRadius = UDim.new(0,8)
+
+local X = Instance.new("TextButton", M)
+X.Size, X.Position, X.BackgroundColor3, X.Text, X.TextColor3, X.Font, X.TextSize = UDim2.new(0,35,0,35), UDim2.new(1,-35,0,0), Color3.fromRGB(180,40,40), "X", Color3.fromRGB(255,255,255), Enum.Font.SourceSansBold, 14
+Instance.new("UICorner", X).CornerRadius = UDim.new(0,8)
+X.MouseButton1Click:Connect(function() G:Destroy() end)
+
+local Pack = Instance.new("Frame", M)
+Pack.Size, Pack.Position, Pack.BackgroundTransparency = UDim2.new(1,0,1,-40), UDim2.new(0,0,0,40), 1
+local Lst = Instance.new("UIListLayout", Pack) Lst.Padding = UDim.new(0,5)
+Lst.HorizontalAlignment, Lst.VerticalAlignment = Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center
+
+-- ARRASTRE DEL PANEL
+local drag, dragI, start, sPos
+M.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then drag, start, sPos = true, i.Position, M.Position end end)
+M.InputChanged:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseMovement then dragI = i end end)
+UIS.InputChanged:Connect(function(i) if i == dragI and drag then local d = i.Position-start; M.Position = UDim2.new(sPos.X.Scale, sPos.X.Offset+d.X, sPos.Y.Scale, sPos.Y.Offset+d.Y) end end)
+UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = false end end)
+
+-- DETECTOR DE OBJETIVOS (AIMBOT)
+function GetT()
+    local obj, maxD, mP = nil, math.huge, UIS:GetMouseLocation()
+    for _,v in pairs(P:GetPlayers()) do 
+        if v ~= LP and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
+            local p, onS = Cam:WorldToScreenPoint(v.Character.HumanoidRootPart.Position)
+            if onS then 
+                local d = (Vector2.new(mP.X, mP.Y) - Vector2.new(p.X, p.Y)).Magnitude
+                if d < maxD then maxD, obj = d, v.Character.HumanoidRootPart end 
+            end 
+        end 
+    end; return obj 
 end
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "VisualCombatHub"
-ScreenGui.Parent = CoreGui
-ScreenGui.ResetOnSpawn = false
-
--- Panel Principal
-local FramePrincipal = Instance.new("Frame")
-FramePrincipal.Size = UDim2.new(0, 220, 0, 230)
-FramePrincipal.Position = UDim2.new(0, 20, 0, 120)
-FramePrincipal.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-FramePrincipal.Active = true
-FramePrincipal.Draggable = true
-FramePrincipal.Parent = ScreenGui
-
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 8)
-UICorner.Parent = FramePrincipal
-
--- Título
-local Titulo = Instance.new("TextLabel")
-Titulo.Size = UDim2.new(1, 0, 0, 40)
-Titulo.BackgroundTransparency = 1
-Titulo.Text = "⚡ COMBAT & VISUAL HUB"
-Titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
-Titulo.TextSize = 13
-Titulo.Font = Enum.Font.SourceSansBold
-Titulo.Parent = FramePrincipal
-
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Parent = FramePrincipal
-UIListLayout.Padding = UDim.new(0, 8)
-UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-local Espacio = Instance.new("Frame")
-Espacio.Size = UDim2.new(1, 0, 0, 35)
-Espacio.BackgroundTransparency = 1
-Espacio.Parent = FramePrincipal
-
--- Función constructora de botones
-local function CrearBoton(texto, colorBase)
-    local Boton = Instance.new("TextButton")
-    Boton.Size = UDim2.new(0, 190, 0, 35)
-    Boton.BackgroundColor3 = colorBase
-    Boton.Text = texto
-    Boton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Boton.Font = Enum.Font.SourceSansBold
-    Boton.TextSize = 14
-    Boton.Parent = FramePrincipal
-    
-    local Corner = Instance.new("UICorner")
-    Corner.CornerRadius = UDim.new(0, 6)
-    Corner.Parent = Boton
-    return Boton
-end
-
--- =============================================================================
--- 🎯 1. LÓGICA DEL AIMBOT UNIVERSAL
--- =============================================================================
-local BotonAimbot = CrearBoton("🎯 Aimbot: DESACTIVADO", Color3.fromRGB(150, 40, 40))
-local AimbotActivo = false
-
-local function ObtenerJugadorMasCercano()
-    local Objetivo = nil
-    local DistanciaMaxima = math.huge
-    local Camara = workspace.CurrentCamera
-    
-    for _, Jugador in pairs(Players:GetPlayers()) do
-        if Jugador ~= JugadorLocal and Jugador.Character and Jugador.Character:FindFirstChild("HumanoidRootPart") and Jugador.Character:FindFirstChild("Humanoid") then
-            if Jugador.Character.Humanoid.Health > 0 then
-                local PosicionPantalla, EnPantalla = Camara:WorldToScreenPoint(Jugador.Character.HumanoidRootPart.Position)
-                if EnPantalla then
-                    local DistanciaMouse = (Vector2.new(Mouse.X, Mouse.Y) - Vector2.new(PosicionPantalla.X, PosicionPantalla.Y)).Magnitude
-                    if DistanciaMouse < DistanciaMaxima then
-                        DistanciaMaxima = DistanciaMouse
-                        Objetivo = Jugador.Character.HumanoidRootPart
-                    end
+-- OPTIMIZACIÓN FILTRADA DEL MUNDO
+local function AplicarOptimizarMundo(Activar)
+    pcall(function()
+        if Activar then
+            L.FogEnd, L.FogStart = 999999, 999999
+            for _, e in pairs(L:GetChildren()) do if e:IsA("Clouds") or e:IsA("BlurEffect") or e:IsA("SunRaysEffect") or e:IsA("BloomEffect") then e.Enabled = false end end
+            for _, o in pairs(workspace:GetDescendants()) do
+                if not o:IsDescendantOf(LP.Character) and not P:GetPlayerFromCharacter(o.Parent) then
+                    if o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Smoke") or o:IsA("Sparkles") then o.Enabled = false 
+                    elseif o:IsA("Decal") or o:IsA("Texture") then if o.Name ~= "face" and not o.Parent:IsA("Shirt") and not o.Parent:IsA("Pants") then o.Transparency = 1 end end
                 end
             end
-        end
-    end
-    return Objetivo
-end
-
-RunService.RenderStepped:Connect(function()
-    if AimbotActivo then
-        local Target = ObtenerJugadorMasCercano()
-        if Target then
-            workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, Target.Position)
-        end
-    end
-end)
-
-BotonAimbot.MouseButton1Click:Connect(function()
-    AimbotActivo = not AimbotActivo
-    BotonAimbot.Text = AimbotActivo and "🎯 Aimbot: ACTIVADO" or "🎯 Aimbot: DESACTIVADO"
-    BotonAimbot.BackgroundColor3 = AimbotActivo and Color3.fromRGB(40, 150, 40) or Color3.fromRGB(150, 40, 40)
-end)
-
--- =============================================================================
--- 👁️ 2. LÓGICA DEL ESP (WALLHACK - CAJAS Y LÍNEAS)
--- =============================================================================
-local BotonESP = CrearBotor or CrearBoton("👁️ ESP: DESACTIVADO", Color3.fromRGB(150, 40, 40))
-local ESPActivo = false
-local ContenedorESP = {}
-
-local function CrearESP(jugador)
-    if jugador == JugadorLocal then return end
-    
-    local Box = Drawing.new("Square")
-    Box.Visible = false
-    Box.Color = Color3.fromRGB(255, 0, 0)
-    Box.Thickness = 1.5
-    Box.Filled = false
-    
-    local Linea = Drawing.new("Line")
-    Linea.Visible = false
-    Linea.Color = Color3.fromRGB(255, 255, 255)
-    Linea.Thickness = 1
-    
-    ContenedorESP[jugador] = {Box = Box, Linea = Linea}
-    
-    local Conectado
-    Conectado = RunService.RenderStepped:Connect(function()
-        if not ESPActivo or not jugador.Parent or not jugador.Character or not jugador.Character:FindFirstChild("HumanoidRootPart") or not jugador.Character:FindFirstChild("Humanoid") or jugador.Character.Humanoid.Health <= 0 then
-            Box.Visible = false
-            Linea.Visible = false
-            if not jugador.Parent then Conectado:Disconnect() end
-            return
-        end
-        
-        local Camara = workspace.CurrentCamera
-        local RootPart = jugador.Character.HumanoidRootPart
-        local Pos, EnPantalla = Camara:WorldToScreenPoint(RootPart.Position)
-        
-        if EnPantalla then
-            -- Dibujar Caja Alrededor del Enemigo
-            Box.Size = Vector2.new(1000 / Pos.Z, 1500 / Pos.Z)
-            Box.Position = Vector2.new(Pos.X - Box.Size.X / 2, Pos.Y - Box.Size.Y / 2)
-            Box.Visible = true
-            
-            -- Dibujar Línea de Rastreo (Desde el centro inferior de tu pantalla)
-            Linea.From = Vector2.new(Camara.ViewportSize.X / 2, Camara.ViewportSize.Y)
-            Linea.To = Vector2.new(Pos.X, Pos.Y)
-            Linea.Visible = true
         else
-            Box.Visible = false
-            Linea.Visible = false
+            L.FogEnd, L.FogStart = oFogEnd, oFogStart
+            for _, e in pairs(L:GetChildren()) do if e:IsA("Clouds") or e:IsA("BlurEffect") or e:IsA("SunRaysEffect") or e:IsA("BloomEffect") then e.Enabled = true end end
+            for _, o in pairs(workspace:GetDescendants()) do
+                if o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Smoke") or o:IsA("Sparkles") then o.Enabled = true 
+                elseif o:IsA("Decal") or o:IsA("Texture") then if o.Name ~= "face" then o.Transparency = 0 end end
+            end
         end
     end)
 end
 
-Players.PlayerAdded:Connect(CrearESP)
-for _, p in pairs(Players:GetPlayers()) do CrearESP(p) end
+-- CREACIÓN DE BOTONES
+local function cBtn(k, txt, func)
+    local b = Instance.new("TextButton", Pack)
+    b.Size, b.BackgroundColor3 = UDim2.new(0,190,0,32), Color3.fromRGB(40,40,40)
+    b.Text, b.TextColor3, b.Font, b.TextSize = txt..": OFF", Color3.fromRGB(220,60,60), Enum.Font.SourceSansBold, 13
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,6)
+    b.MouseButton1Click:Connect(function()
+        cfg[k] = not cfg[k]
+        if cfg[k] then 
+            b.Text, b.BackgroundColor3, b.TextColor3 = txt..": ON", Color3.fromRGB(45,140,45), Color3.fromRGB(255,255,255)
+            if k == "FullBright" then AplicarOptimizarMundo(true) end
+            if func then func() b.Text, b.BackgroundColor3, b.TextColor3 = txt..": OFF", Color3.fromRGB(40,40,40), Color3.fromRGB(220,60,60) cfg[k] = false end
+        else 
+            b.Text, b.BackgroundColor3, b.TextColor3 = txt..": OFF", Color3.fromRGB(40,40,40), Color3.fromRGB(220,60,60) 
+            if k == "FullBright" then AplicarOptimizarMundo(false) end
+            if k == "Aimbot" then lock, targ = false, nil end
+        end
+    end)
+end
 
-BotonESP.MouseButton1Click:Connect(function()
-    ESPActivo = not ESPActivo
-    BotonESP.Text = ESPActivo and "👁️ ESP: ACTIVADO" or "👁️ ESP: DESACTIVADO"
-    BotonESP.BackgroundColor3 = ESPActivo and Color3.fromRGB(40, 150, 40) or Color3.fromRGB(150, 40, 40)
+cBtn("Aimbot", "🎯 Permitir Aimbot")
+cBtn("FullBright", "💡 Iluminación + FPS")
+cBtn("ESP", "👁️ Ver Jugadores (ESP)")
+cBtn("Fly", "🦅 Vuelo (Fly)")
+cBtn("Teleport", "🌀 Teleport Cercano", function()
+    local o = GetT() if o and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then LP.Character.HumanoidRootPart.CFrame = o.CFrame * CFrame.new(0,4,0) end
 end)
 
--- =============================================================================
--- ☀️ 3. LÓGICA DE DÍA DIURNO HD
--- =============================================================================
-local BotonDia = CrearBoton("☀️ Forzar Día HD", Color3.fromRGB(70, 70, 90))
-
-BotonDia.MouseButton1Click:Connect(function()
-    Lighting.ClockTime = 14
-    Lighting.Brightness = 3
-    Lighting.OutdoorAmbient = Color3.fromRGB(130, 130, 140)
-    
-    local NuevoCielo = Instance.new("Sky")
-    NuevoCielo.SkyboxBk = "rbxassetid://6444884337"
-    NuevoCielo.SkyboxDn = "rbxassetid://6444884784"
-    NuevoCielo.SkyboxFt = "rbxassetid://6444884214"
-    NuevoCielo.SkyboxLf = "rbxassetid://6444884112"
-    NuevoCielo.SkyboxRt = "rbxassetid://6444883979"
-    NuevoCielo.SkyboxUp = "rbxassetid://6444884545"
-    NuevoCielo.Parent = Lighting
-
-    local Atmosfera = Instance.new("Atmosphere")
-    Atmosfera.Density = 0.25
-    Atmosfera.Color = Color3.fromRGB(190, 220, 255)
-    Atmosfera.Parent = Lighting
-    
-    local ColorFiltro = Instance.new("ColorCorrectionEffect")
-    ColorFiltro.Saturation = 0.25
-    ColorFiltro.Parent = Lighting
-    
-    BotonDia.Text = "☀️ ¡Visuales Diurnos OK!"
-    task.wait(1.5)
-    BotonDia.Text = "☀️ Forzar Día HD"
+-- ACCIONES DE TECLADO
+UIS.InputBegan:Connect(function(i,p) 
+    if not p then 
+        if i.KeyCode == Enum.KeyCode.F and cfg.Aimbot then 
+            lock = not lock; if not lock then targ = nil end 
+        elseif i.KeyCode == Enum.KeyCode.KeypadThree then 
+            open = not open; G.Enabled = open 
+        end 
+    end 
 end)
 
-print("Script Unificado [Aimbot + ESP + Día] cargado correctamente.")
+-- SISTEMA FLY INDEPENDIENTE (CON TACTO ULTRA SUAVE PARA XENO)
+task.spawn(function()
+    while true do
+        local dt = RS.Heartbeat:Wait()
+        if cfg.Fly then
+            pcall(function()
+                local char = LP.Character
+                if char then
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    if hrp and hum then
+                        hum.PlatformStand = true
+                        local dir = Vector3.new(0,0,0)
+                        if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + Cam.CFrame.LookVector end
+                        if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - Cam.CFrame.LookVector end
+                        if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - Cam.CFrame.RightVector end
+                        if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + Cam.CFrame.RightVector end
+                        hrp.CFrame = CFrame.new(hrp.Position + (dir * flySpeed * dt), hrp.Position + Cam.CFrame.LookVector * 100)
+                        hrp.Velocity = Vector3.new(0,0,0)
+                    end
+                end
+            end)
+        else
+            pcall(function()
+                local char = LP.Character
+                if char then
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    if hum and hum.PlatformStand then hum.PlatformStand = false end
+                end
+            end)
+        end
+    end
+end)
 
+-- BUCLE PRINCIPAL (AIMBOT, LIGHTING Y ESP)
+local fL = Instance.new("PointLight", Cam) fL.Range, fL.Brightness, fL.Enabled = 10000, 3, false
+RS.RenderStepped:Connect(function()
+    pcall(function()
+        if cfg.Aimbot and lock then 
+            if not targ or not targ.Parent or not targ.Parent:FindFirstChild("Humanoid") or targ.Parent.Humanoid.Health <= 0 then targ = GetT() end
+            if targ then Cam.CFrame = CFrame.new(Cam.CFrame.Position, targ.Position) end 
+        else targ = nil end
+        
+        fL.Enabled = cfg.FullBright
+        if cfg.FullBright then 
+            if L.GlobalShadows ~= false then L.GlobalShadows = false; L.Ambient = Color3.fromRGB(255,255,255) end 
+        else 
+            if L.GlobalShadows ~= oS then L.GlobalShadows = oS; L.Ambient = oA end 
+        end
+        
+        for _,v in pairs(P:GetPlayers()) do 
+            if v ~= LP and v.Character then 
+                local h = v.Character:FindFirstChild("ESPHl")
+                if cfg.ESP then 
+                    if not h then 
+                        h = Instance.new("Highlight", v.Character) h.Name = "ESPHl"
+                        h.FillColor, h.FillTransparency, h.OutlineColor, h.DepthMode = Color3.fromRGB(255,0,0), 0.5, Color3.fromRGB(255,255,255), Enum.HighlightDepthMode.AlwaysOnTop 
+                    end
+                else if h then h:Destroy() end end 
+            end 
+        end
+    end)
+end)
