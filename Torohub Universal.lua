@@ -92,6 +92,31 @@ local function getRoot(character)
         or character:FindFirstChild("UpperTorso")
 end
 
+local function getClosestTarget()
+    local closestTarget = nil
+    local bestDistance = math.huge
+    local mousePos = UserInputService:GetMouseLocation()
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character.Parent then
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            local rootPart = getRoot(player.Character)
+            if humanoid and humanoid.Health > 0 and rootPart then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+                if onScreen then
+                    local dist = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
+                    if dist < bestDistance then
+                        bestDistance = dist
+                        closestTarget = rootPart
+                    end
+                end
+            end
+        end
+    end
+
+    return closestTarget
+end
+
 local function applyTheme(themeName)
     local theme = themePalette[themeName] or themePalette.Midnight
     Window.BackgroundColor3 = theme.Window
@@ -100,16 +125,16 @@ local function applyTheme(themeName)
     CloseButton.BackgroundColor3 = theme.Accent
     CloseButton.TextColor3 = theme.Text
 
-    for _, button in ipairs(tabButtons) do
-        button.BackgroundColor3 = state.ActiveTab == button.Name and theme.TabActive or theme.TabInactive
-        button.TextColor3 = theme.Text
-    end
-
     for _, button in ipairs(allButtons) do
-        if button ~= CloseButton then
+        if button ~= CloseButton and not button.IsTab then
             button.BackgroundColor3 = theme.Button
             button.TextColor3 = theme.Text
         end
+    end
+
+    for _, button in ipairs(tabButtons) do
+        button.BackgroundColor3 = state.ActiveTab == button.Name and theme.TabActive or theme.TabInactive
+        button.TextColor3 = theme.Text
     end
 end
 
@@ -123,8 +148,14 @@ local function createButton(text, size, position, parent)
     button.TextColor3 = themePalette[config.Theme].Text
     button.Font = Enum.Font.Gotham
     button.TextSize = 14
+    button.TextWrapped = true
+    button.TextScaled = false
     button.AutoButtonColor = false
     button.Parent = parent
+    button.IsTab = parent == TabBar
+    if button.IsTab then
+        button.TextScaled = true
+    end
 
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 10)
@@ -134,7 +165,12 @@ local function createButton(text, size, position, parent)
         safeTween(button, {BackgroundColor3 = themePalette[config.Theme].ButtonHover}, 0.1)
     end)
     button.MouseLeave:Connect(function()
-        safeTween(button, {BackgroundColor3 = themePalette[config.Theme].Button}, 0.1)
+        if button.IsTab then
+            local active = state.ActiveTab == button.Name
+            safeTween(button, {BackgroundColor3 = active and themePalette[config.Theme].TabActive or themePalette[config.Theme].TabInactive}, 0.1)
+        else
+            safeTween(button, {BackgroundColor3 = themePalette[config.Theme].Button}, 0.1)
+        end
     end)
 
     table.insert(allButtons, button)
@@ -150,6 +186,10 @@ local function createToggle(text, position, parent, stateKey)
         if config[stateKey] then
             safeTween(button, {BackgroundColor3 = themePalette[config.Theme].Accent}, 0.15)
             button.Text = text .. ": ON"
+            if stateKey == "Aimbot" then
+                state.AimbotLocked = true
+                activeTarget = getClosestTarget()
+            end
         else
             safeTween(button, {BackgroundColor3 = themePalette[config.Theme].Button}, 0.15)
             button.Text = text .. ": OFF"
@@ -258,7 +298,7 @@ CloseCorner.Parent = CloseButton
 
 local TabBar = Instance.new("Frame")
 TabBar.Name = "TabBar"
-TabBar.Size = UDim2.new(1, -40, 0, 40)
+TabBar.Size = UDim2.new(1, 0, 0, 40)
 TabBar.Position = UDim2.new(0, 20, 0, 62)
 TabBar.BackgroundTransparency = 1
 TabBar.Parent = Window
@@ -274,6 +314,7 @@ local tabButtons = {}
 local allButtons = {CloseButton}
 local tabFrames = {}
 local activeTarget = nil
+local espHighlights = {}
 
 local pageNames = {"Main", "Misc", "Character", "Combat", "Weapons", "Settings"}
 
@@ -292,8 +333,8 @@ local function setActiveTab(name)
 end
 
 for index, name in ipairs(pageNames) do
-    local buttonSize = UDim2.new(0, 56, 0, 36)
-    local button = createButton(name, buttonSize, UDim2.new(0, (index - 1) * 62, 0, 0), TabBar)
+    local buttonSize = UDim2.new(0, 60, 0, 36)
+    local button = createButton(name, buttonSize, UDim2.new(0, (index - 1) * 63, 0, 0), TabBar)
     button.Name = name
     button.TextSize = 12
     button.BackgroundColor3 = themePalette[config.Theme].TabInactive
@@ -566,6 +607,15 @@ fullBrightLight.Brightness = 3
 fullBrightLight.Enabled = false
 fullBrightLight.Parent = Camera
 
+Players.PlayerRemoving:Connect(function(player)
+    if espHighlights[player] then
+        if espHighlights[player].Parent then
+            espHighlights[player]:Destroy()
+        end
+        espHighlights[player] = nil
+    end
+end)
+
 setActiveTab("Main")
 applyTheme(config.Theme)
 updateCharacterLabels()
@@ -576,25 +626,7 @@ RunService.RenderStepped:Connect(function()
         -- Aimbot
         if config.Aimbot and state.AimbotLocked then
             if not activeTarget or not activeTarget.Parent or not activeTarget.Parent:FindFirstChildOfClass("Humanoid") or activeTarget.Parent:FindFirstChildOfClass("Humanoid").Health <= 0 then
-                activeTarget = nil
-                local mousePos = UserInputService:GetMouseLocation()
-                local bestDistance = math.huge
-                for _, player in ipairs(Players:GetPlayers()) do
-                    if player ~= LocalPlayer and player.Character then
-                        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-                        local rootPart = getRoot(player.Character)
-                        if humanoid and humanoid.Health > 0 and rootPart then
-                            local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
-                            if onScreen then
-                                local dist = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
-                                if dist < bestDistance then
-                                    bestDistance = dist
-                                    activeTarget = rootPart
-                                end
-                            end
-                        end
-                    end
-                end
+                activeTarget = getClosestTarget()
             end
             if activeTarget then
                 Camera.CFrame = CFrame.new(Camera.CFrame.Position, activeTarget.Position)
@@ -633,10 +665,11 @@ RunService.RenderStepped:Connect(function()
 
         -- ESP
         for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character then
-                local highlight = player.Character:FindFirstChild("ESPHl")
-                if config.ESP then
-                    if not highlight and getRoot(player.Character) then
+            if player ~= LocalPlayer and player.Character and player.Character.Parent then
+                local rootPart = getRoot(player.Character)
+                local highlight = espHighlights[player]
+                if config.ESP and rootPart then
+                    if not highlight or not highlight.Parent then
                         highlight = Instance.new("Highlight")
                         highlight.Name = "ESPHl"
                         highlight.FillColor = Color3.fromRGB(255, 65, 65)
@@ -644,13 +677,26 @@ RunService.RenderStepped:Connect(function()
                         highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
                         highlight.OutlineTransparency = 0
                         highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                        highlight.Enabled = true
                         highlight.Adornee = player.Character
                         highlight.Parent = player.Character
+                        espHighlights[player] = highlight
+                    else
+                        highlight.Adornee = player.Character
+                        highlight.Enabled = true
                     end
                 else
-                    if highlight then
+                    if highlight and highlight.Parent then
                         highlight:Destroy()
                     end
+                    espHighlights[player] = nil
+                end
+            else
+                if espHighlights[player] then
+                    if espHighlights[player].Parent then
+                        espHighlights[player]:Destroy()
+                    end
+                    espHighlights[player] = nil
                 end
             end
         end
