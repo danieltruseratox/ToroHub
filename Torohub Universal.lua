@@ -49,7 +49,6 @@ M.Position = UDim2.new(0.1, 0, 0.3, 0)
 M.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 M.BorderSizePixel = 0
 M.Active = true
-M.ZIndex = 1
 M.Parent = G
 
 local MainCorner = Instance.new("UICorner")
@@ -63,7 +62,6 @@ T.Text = "⚡ TORO HUB V12 ⚡"
 T.TextColor3 = Color3.fromRGB(255, 255, 255)
 T.Font = Enum.Font.SourceSansBold
 T.TextSize = 14
-T.ZIndex = 2
 T.Parent = M
 
 local TitleCorner = Instance.new("UICorner")
@@ -78,7 +76,6 @@ X.Text = "X"
 X.TextColor3 = Color3.fromRGB(255, 255, 255)
 X.Font = Enum.Font.SourceSansBold
 X.TextSize = 14
-X.ZIndex = 2
 X.Parent = M
 
 local CloseCorner = Instance.new("UICorner")
@@ -92,7 +89,6 @@ Pack.Name = "Container"
 Pack.Size = UDim2.new(1, 0, 0, 200)
 Pack.Position = UDim2.new(0, 0, 0, 50)
 Pack.BackgroundTransparency = 1
-Pack.ZIndex = 2
 Pack.Parent = M
 
 local Lst = Instance.new("UIListLayout")
@@ -151,16 +147,15 @@ local function AplicarOptimizarMundo(Activar)
     end)
 end
 
--- BOTONES MODIFICADOS CON ORDEN DE RENDERIZADO FORZADO (ZINDEX)
+-- BOTONES MODIFICADOS CON ORDEN DE RENDERIZADO FORZADO
 local function cBtn(k, txt, func)
     local b = Instance.new("TextButton")
-    b.Size = UDim2.new(0, 210, 0, 35)
+    b.Size = UDim2.new(0, 210, 0, 35) -- Forzamos tamaño exacto visible
     b.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     b.Text = txt..": OFF"
     b.TextColor3 = Color3.fromRGB(220, 60, 60)
     b.Font = Enum.Font.SourceSansBold
     b.TextSize = 13
-    b.ZIndex = 3 -- Fuerza al botón a renderizarse arriba de todas las capas negras
     b.Parent = Pack
 
     local ButtonCorner = Instance.new("UICorner")
@@ -238,3 +233,9 @@ RunService.RenderStepped:Connect(function()
                         h.FillColor, h.FillTransparency, h.OutlineColor, h.DepthMode = Color3.fromRGB(255,0,0), 0.5, Color3.fromRGB(255,255,255), Enum.HighlightDepthMode.AlwaysOnTop
                     end
                 else 
+                    if h then h:Destroy() end 
+                end 
+            end 
+        end
+    end)
+end)
