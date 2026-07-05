@@ -1,8 +1,6 @@
--- =============================================================================
--- TORO HUB: VERSIÓN BASE ESTABLE + FLY POR FUERZAS + CLICK TO TP (LETRA T)
--- =============================================================================
-
+-- NEÓN HUB: INTERFAZ Y SCRIPTS INTEGRADOS ORIGINALES (ULTRA ESTABLE)
 local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
@@ -17,27 +15,24 @@ local MenuConfig = {
     Aimbot = false,
     FullBright = false,
     ESP = false,
-    Fly = false,
     Teleport = false
 }
 
--- VALORES ORIGINALES GUARDADOS PARA EL FULLBRIGHT
+-- VALORES ORIGINALES PARA EL FULLBRIGHT
 local OriginalAmbient = Lighting.Ambient
 local OriginalOutdoorAmbient = Lighting.OutdoorAmbient
 local OriginalClockTime = Lighting.ClockTime
-local flySpeed = 60
-local sosteniendoT = false
 
 ----------------------------------------------------------------
--- 1. INTERFAZ GRÁFICA ORIGINAL (DIRIGIDA A PLAYERGUI)
+-- 1. CREACIÓN DE LA INTERFAZ GRÁFICA (GUI)
 ----------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ToroHubGuiFixed"
+ScreenGui.Name = "NeonHubGuiFixed"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = JugadorLocal:WaitForChild("PlayerGui")
 
 local FramePrincipal = Instance.new("Frame")
-FramePrincipal.Size = UDim2.new(0, 250, 0, 360) -- Modificado el alto para acomodar el botón Fly
+FramePrincipal.Size = UDim2.new(0, 250, 0, 320)
 FramePrincipal.Position = UDim2.new(0.1, 0, 0.3, 0)
 FramePrincipal.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 FramePrincipal.BorderSizePixel = 0
@@ -51,7 +46,7 @@ UICorner.Parent = FramePrincipal
 local Titulo = Instance.new("TextLabel")
 Titulo.Size = UDim2.new(1, -40, 0, 40)
 Titulo.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Titulo.Text = "⚡ TORO HUB V11 ⚡"
+Titulo.Text = "⚡ NEÓN HUB V11 ⚡"
 Titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
 Titulo.Font = Enum.Font.SourceSansBold
 Titulo.TextSize = 18
@@ -168,10 +163,10 @@ local function CrearToggle(NombreConfig, TextoBoton)
     end)
 end
 
+-- Creamos los botones en la interfaz
 CrearToggle("Aimbot", "🎯 Habilitar Aimbot")
 CrearToggle("FullBright", "💡 FullBright")
 CrearToggle("ESP", "👁️ Ver Jugadores (ESP)")
-CrearToggle("Fly", "🦅 Vuelo (Fly)")
 CrearToggle("Teleport", "🌀 Teleport Más Cercano")
 
 ----------------------------------------------------------------
@@ -256,6 +251,10 @@ function EjecutarTeleport()
     end
 end
 
--- LÓGICA DEL CLICK TO TELEPORT (LETRA T SOTENIDA + UN CLICK)
+-- OCULTAR CON EL NUMERAL 3 DEL PAD DERECHO
 UserInputService.InputBegan:Connect(function(Input, Procesado)
     if Procesado then return end
+    if Input.KeyCode == Enum.KeyCode.KeypadThree then
+        ScreenGui.Enabled = not ScreenGui.Enabled
+    end
+end)
