@@ -1,6 +1,4 @@
--- NEÓN HUB: INTERFAZ Y SCRIPTS INTEGRADOS ORIGINALES (ULTRA ESTABLE)
 local Players = game:GetService("Players")
-local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
@@ -18,16 +16,16 @@ local MenuConfig = {
     Teleport = false
 }
 
--- VALORES ORIGINALES PARA EL FULLBRIGHT
+-- VALORES ORIGINALES GUARDADOS PARA EL FULLBRIGHT
 local OriginalAmbient = Lighting.Ambient
 local OriginalOutdoorAmbient = Lighting.OutdoorAmbient
 local OriginalClockTime = Lighting.ClockTime
 
 ----------------------------------------------------------------
--- 1. CREACIÓN DE LA INTERFAZ GRÁFICA (GUI)
+-- 1. INTERFAZ GRÁFICA ORIGINAL (DIRIGIDA A PLAYERGUI)
 ----------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "NeonHubGuiFixed"
+ScreenGui.Name = "ToroHubGuiFixed"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = JugadorLocal:WaitForChild("PlayerGui")
 
@@ -46,7 +44,7 @@ UICorner.Parent = FramePrincipal
 local Titulo = Instance.new("TextLabel")
 Titulo.Size = UDim2.new(1, -40, 0, 40)
 Titulo.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Titulo.Text = "⚡ NEÓN HUB V11 ⚡"
+Titulo.Text = "⚡ TORO HUB V11 ⚡"
 Titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
 Titulo.Font = Enum.Font.SourceSansBold
 Titulo.TextSize = 18
@@ -163,7 +161,6 @@ local function CrearToggle(NombreConfig, TextoBoton)
     end)
 end
 
--- Creamos los botones en la interfaz
 CrearToggle("Aimbot", "🎯 Habilitar Aimbot")
 CrearToggle("FullBright", "💡 FullBright")
 CrearToggle("ESP", "👁️ Ver Jugadores (ESP)")
