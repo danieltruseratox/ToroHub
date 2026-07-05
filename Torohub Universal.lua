@@ -17,14 +17,8 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local MouseNativo = LocalPlayer:GetMouse()
 
--- CONFIGURACIÓN GENERAL (ESTADOS COMPLETAMENTE SINCRONIZADOS)
-local cfg = {
-    Aimbot = false,
-    FullBright = false,
-    ESP = false,
-    ClickToTP = false
-}
-
+-- CONFIGURACIÓN GENERAL (ESTADOS)
+local cfg = {Aimbot = false, FullBright = false, ESP = false}
 local lock, targ, open = false, nil, true
 
 local TeclaOcultarMenu = Enum.KeyCode.KeypadThree
@@ -119,7 +113,7 @@ local function cBtn(k, txt, func)
         if cfg[k] then 
             b.Text, b.BackgroundColor3, b.TextColor3 = txt..": ON", Color3.fromRGB(45,140,45), Color3.fromRGB(255,255,255)
             if k == "FullBright" then AplicarOptimizarMundo(true) end
-            if func then func() end
+            if func then func() b.Text, b.BackgroundColor3, b.TextColor3 = txt..": OFF", Color3.fromRGB(40,40,40), Color3.fromRGB(220,60,60) cfg[k] = false end
         else 
             b.Text, b.BackgroundColor3, b.TextColor3 = txt..": OFF", Color3.fromRGB(40,40,40), Color3.fromRGB(220,60,60) 
             if k == "FullBright" then AplicarOptimizarMundo(false) end
@@ -131,9 +125,11 @@ end
 cBtn("Aimbot", "🎯 Permitir Aimbot")
 cBtn("FullBright", "💡 Iluminación + FPS")
 cBtn("ESP", "👁️ Ver Jugadores (ESP)")
-cBtn("ClickToTP", "🌀 Click to TP (Tecla T)")
+cBtn("Teleport", "🌀 Teleport Cercano", function()
+    local o = GetT() if o and getRoot(LocalPlayer.Character) then getRoot(LocalPlayer.Character).CFrame = o.CFrame * CFrame.new(0,4,0) end
+end)
 
--- INPUTS GENERALES Y CAPTURA DEL MOUSE
+-- INPUTS GENERALES
 UIS.InputBegan:Connect(function(i,p) 
     if not p then 
         if i.KeyCode == TeclaAimbot and cfg.Aimbot then 
@@ -142,7 +138,7 @@ UIS.InputBegan:Connect(function(i,p)
             open = not open; G.Enabled = open 
         elseif i.KeyCode == TeclaClickToTeleport then
             sosteniendoT = true
-        elseif i.UserInputType == Enum.UserInputType.MouseButton1 and sosteniendoT and cfg.ClickToTP then
+        elseif i.UserInputType == Enum.UserInputType.MouseButton1 and sosteniendoT then
             pcall(function()
                 if getRoot(LocalPlayer.Character) and MouseNativo.Hit then
                     getRoot(LocalPlayer.Character).CFrame = CFrame.new(MouseNativo.Hit.Position + Vector3.new(0, 3, 0))
@@ -154,27 +150,18 @@ end)
 
 UIS.InputEnded:Connect(function(i) if i.KeyCode == TeclaClickToTeleport then sosteniendoT = false end end)
 
--- BUCLE DE RENDERIZADO PRINCIPAL AUTOMÁTICO
+-- BUCLE DE RENDERIZADO PRINCIPAL
 local fL = Instance.new("PointLight", Camera) fL.Range, fL.Brightness, fL.Enabled = 10000, 3, false
 RunService.RenderStepped:Connect(function()
     pcall(function()
-        -- AIMBOT LOGIC
         if cfg.Aimbot and lock then 
             if not targ or not targ.Parent or not targ.Parent:FindFirstChild("Humanoid") or targ.Parent.Humanoid.Health <= 0 then targ = GetT() end
             if targ then Camera.CFrame = CFrame.new(Camera.CFrame.Position, targ.Position) end 
         else targ = nil end
         
-        -- FULLBRIGHT LOGIC (Asigna los estados de la tabla cfg)
         fL.Enabled = cfg.FullBright
-        if cfg.FullBright then 
-            Lighting.GlobalShadows = false
-            Lighting.Ambient = Color3.fromRGB(255,255,255) 
-        else 
-            Lighting.GlobalShadows = oS
-            Lighting.Ambient = oA 
-        end
+        if cfg.FullBright then Lighting.GlobalShadows, Lighting.Ambient = false, Color3.fromRGB(255,255,255) else Lighting.GlobalShadows, Lighting.Ambient = oS, oA end
         
-        -- ESP HIGHLIGHT LOGIC (Asigna los estados de la tabla cfg)
         for _,v in pairs(Players:GetPlayers()) do 
             if v ~= LocalPlayer and v.Character then 
                 local h = v.Character:FindFirstChild("ESPHl")
@@ -183,9 +170,7 @@ RunService.RenderStepped:Connect(function()
                         h = Instance.new("Highlight", v.Character) h.Name = "ESPHl"
                         h.FillColor, h.FillTransparency, h.OutlineColor, h.DepthMode = Color3.fromRGB(255,0,0), 0.5, Color3.fromRGB(255,255,255), Enum.HighlightDepthMode.AlwaysOnTop
                     end
-                else 
-                    if h then h:Destroy() end 
-                end 
+                else if h then h:Destroy() end end 
             end 
         end
     end)
