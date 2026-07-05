@@ -17,7 +17,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local MouseNativo = LocalPlayer:GetMouse()
 
--- CONFIGURACIÓN GENERAL (ESTADOS)
+-- CONFIGURACIÓN GENERAL (ESTADOS COMPLETAMENTE SINCRONIZADOS)
 local cfg = {
     Aimbot = false,
     FullBright = false,
@@ -36,66 +36,27 @@ local oS, oA = Lighting.GlobalShadows, Lighting.Ambient
 local oFogEnd, oFogStart = Lighting.FogEnd, Lighting.FogStart
 local sosteniendoT = false
 
--- INTERFAZ GRÁFICA CORREGIDA (CAPAS Y TAMAÑOS VISIBLES FIJOS)
-local G = Instance.new("ScreenGui")
-G.Name = "ToroHubFixedVisual"
-G.ResetOnSpawn = false
-G.Parent = LocalPlayer:WaitForChild("PlayerGui")
+-- INTERFAZ GRÁFICA
+local G = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+G.Name = "ToroHub" G.ResetOnSpawn = false
 
-local M = Instance.new("Frame")
-M.Name = "Main"
-M.Size = UDim2.new(0, 240, 0, 260)
-M.Position = UDim2.new(0.1, 0, 0.3, 0)
-M.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-M.BorderSizePixel = 0
-M.Active = true
-M.Parent = G
+local M = Instance.new("Frame", G)
+M.Size, M.Position, M.BackgroundColor3, M.Active = UDim2.new(0,220,0,280), UDim2.new(0.1,0,0.3,0), Color3.fromRGB(20,20,20), true
+Instance.new("UICorner", M).CornerRadius = UDim.new(0,8)
 
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 8)
-MainCorner.Parent = M
+local T = Instance.new("TextLabel", M)
+T.Size, T.Text, T.BackgroundColor3, T.TextColor3, T.Font, T.TextSize = UDim2.new(1,-40,0,35), "⚡ TORO HUB V12 ⚡", Color3.fromRGB(30,30,30), Color3.fromRGB(255,255,255), Enum.Font.SourceSansBold, 14
+Instance.new("UICorner", T).CornerRadius = UDim.new(0,8)
 
-local T = Instance.new("TextLabel")
-T.Size = UDim2.new(1, -40, 0, 40)
-T.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-T.Text = "⚡ TORO HUB V12 ⚡"
-T.TextColor3 = Color3.fromRGB(255, 255, 255)
-T.Font = Enum.Font.SourceSansBold
-T.TextSize = 14
-T.Parent = M
-
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 8)
-TitleCorner.Parent = T
-
-local X = Instance.new("TextButton")
-X.Size = UDim2.new(0, 35, 0, 35)
-X.Position = UDim2.new(1, -38, 0, 2)
-X.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-X.Text = "X"
-X.TextColor3 = Color3.fromRGB(255, 255, 255)
-X.Font = Enum.Font.SourceSansBold
-X.TextSize = 14
-X.Parent = M
-
-local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 6)
-CloseCorner.Parent = X
+local X = Instance.new("TextButton", M)
+X.Size, X.Position, X.BackgroundColor3, X.Text, X.TextColor3, X.Font, X.TextSize = UDim2.new(0,35,0,35), UDim2.new(1,-35,0,0), Color3.fromRGB(180, 40, 40), "X", Color3.fromRGB(255,255,255), Enum.Font.SourceSansBold, 14
+Instance.new("UICorner", X).CornerRadius = UDim.new(0,8)
 X.MouseButton1Click:Connect(function() G:Destroy() end)
 
--- CONTENEDOR AJUSTADO EXPRESAMENTE PARA EVITAR BOTONES INVISIBLES
-local Pack = Instance.new("Frame")
-Pack.Name = "Container"
-Pack.Size = UDim2.new(1, 0, 0, 200)
-Pack.Position = UDim2.new(0, 0, 0, 50)
-Pack.BackgroundTransparency = 1
-Pack.Parent = M
-
-local Lst = Instance.new("UIListLayout")
-Lst.Padding = UDim.new(0, 6)
-Lst.HorizontalAlignment = Enum.HorizontalAlignment.Center
-Lst.VerticalAlignment = Enum.VerticalAlignment.Top
-Lst.Parent = Pack
+local Pack = Instance.new("Frame", M)
+Pack.Size, Pack.Position, Pack.BackgroundTransparency = UDim2.new(1,0,1,-40), UDim2.new(0,0,0,40), 1
+local Lst = Instance.new("UIListLayout", Pack) Lst.Padding = UDim.new(0,5)
+Lst.HorizontalAlignment, Lst.VerticalAlignment = Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center
 
 -- ARRASTRE
 local drag, dragI, start, sPos
@@ -147,33 +108,20 @@ local function AplicarOptimizarMundo(Activar)
     end)
 end
 
--- BOTONES MODIFICADOS CON ORDEN DE RENDERIZADO FORZADO
+-- BOTONES
 local function cBtn(k, txt, func)
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.new(0, 210, 0, 35) -- Forzamos tamaño exacto visible
-    b.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    b.Text = txt..": OFF"
-    b.TextColor3 = Color3.fromRGB(220, 60, 60)
-    b.Font = Enum.Font.SourceSansBold
-    b.TextSize = 13
-    b.Parent = Pack
-
-    local ButtonCorner = Instance.new("UICorner")
-    ButtonCorner.CornerRadius = UDim.new(0, 6)
-    ButtonCorner.Parent = b
-
+    local b = Instance.new("TextButton", Pack)
+    b.Size, b.BackgroundColor3 = UDim2.new(0,190,0,32), Color3.fromRGB(40,40,40)
+    b.Text, b.TextColor3, b.Font, b.TextSize = txt..": OFF", Color3.fromRGB(220,60,60), Enum.Font.SourceSansBold, 13
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,6)
     b.MouseButton1Click:Connect(function()
         cfg[k] = not cfg[k]
         if cfg[k] then 
-            b.Text = txt..": ON"
-            b.BackgroundColor3 = Color3.fromRGB(45, 140, 45)
-            b.TextColor3 = Color3.fromRGB(255, 255, 255)
+            b.Text, b.BackgroundColor3, b.TextColor3 = txt..": ON", Color3.fromRGB(45,140,45), Color3.fromRGB(255,255,255)
             if k == "FullBright" then AplicarOptimizarMundo(true) end
             if func then func() end
         else 
-            b.Text = txt..": OFF"
-            b.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-            b.TextColor3 = Color3.fromRGB(220, 60, 60)
+            b.Text, b.BackgroundColor3, b.TextColor3 = txt..": OFF", Color3.fromRGB(40,40,40), Color3.fromRGB(220,60,60) 
             if k == "FullBright" then AplicarOptimizarMundo(false) end
             if k == "Aimbot" then lock, targ = false, nil end
         end
@@ -185,7 +133,7 @@ cBtn("FullBright", "💡 Iluminación + FPS")
 cBtn("ESP", "👁️ Ver Jugadores (ESP)")
 cBtn("ClickToTP", "🌀 Click to TP (Tecla T)")
 
--- INPUTS GENERALES
+-- INPUTS GENERALES Y CAPTURA DEL MOUSE
 UIS.InputBegan:Connect(function(i,p) 
     if not p then 
         if i.KeyCode == TeclaAimbot and cfg.Aimbot then 
@@ -206,15 +154,17 @@ end)
 
 UIS.InputEnded:Connect(function(i) if i.KeyCode == TeclaClickToTeleport then sosteniendoT = false end end)
 
--- BUCLE DE RENDERIZADO PRINCIPAL
+-- BUCLE DE RENDERIZADO PRINCIPAL AUTOMÁTICO
 local fL = Instance.new("PointLight", Camera) fL.Range, fL.Brightness, fL.Enabled = 10000, 3, false
 RunService.RenderStepped:Connect(function()
     pcall(function()
+        -- AIMBOT LOGIC
         if cfg.Aimbot and lock then 
             if not targ or not targ.Parent or not targ.Parent:FindFirstChild("Humanoid") or targ.Parent.Humanoid.Health <= 0 then targ = GetT() end
             if targ then Camera.CFrame = CFrame.new(Camera.CFrame.Position, targ.Position) end 
         else targ = nil end
         
+        -- FULLBRIGHT LOGIC (Asigna los estados de la tabla cfg)
         fL.Enabled = cfg.FullBright
         if cfg.FullBright then 
             Lighting.GlobalShadows = false
@@ -224,6 +174,7 @@ RunService.RenderStepped:Connect(function()
             Lighting.Ambient = oA 
         end
         
+        -- ESP HIGHLIGHT LOGIC (Asigna los estados de la tabla cfg)
         for _,v in pairs(Players:GetPlayers()) do 
             if v ~= LocalPlayer and v.Character then 
                 local h = v.Character:FindFirstChild("ESPHl")
