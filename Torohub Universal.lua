@@ -1,38 +1,20 @@
--- =============================================================================
--- ████████╗ ██████╗ ██████╗  ██████╗     ██╗  ██╗██╗   ██╗██████╗ 
--- ╚══██╔══╝██╔═══██╗██╔══██╗██╔═══██╗    ██║  ██║██║   ██║██╔══██╗
---    ██║   ██║   ██║██████╔╝██║   ██║    ███████║██║   ██║██████╔╝
---    ██║   ██║   ██║██╔══██╗██║   ██║    ██╔══██║██║   ██║██╔══██╗
---    ██║   ╚██████╔╝██║  ██║╚██████╔╝    ██║  ██║╚██████╔╝██║  ██║
---    ╚═╝    ╚═════╝ ╚═╝  ╚═╝ ╚═════╝     ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝
--- =============================================================================
+local P = game:GetService("Players")
+local LP = P.LocalPlayer
+local Cam = workspace.CurrentCamera
+local UIS = game:GetService("UserInputService")
+local L = game:GetService("Lighting")
+local RS = game:GetService("RunService")
 
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
-local UserInputService = game:GetService("UserInputService")
-
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
-local MouseNativo = LocalPlayer:GetMouse()
-
--- CONFIGURACIÓN GENERAL (ESTADOS)
 local cfg = {Aimbot = false, FullBright = false, ESP = false, Fly = false}
 local lock, targ, open = false, nil, true
+local oS, oA = L.GlobalShadows, L.Ambient
 
-local TeclaOcultarMenu = Enum.KeyCode.KeypadThree
-local TeclaAimbot = Enum.KeyCode.F
-local TeclaClickToTeleport = Enum.KeyCode.T
-
--- VALORES ORIGINALES
-local oS, oA = Lighting.GlobalShadows, Lighting.Ambient
-local oFogEnd, oFogStart = Lighting.FogEnd, Lighting.FogStart
-local flySpeed = 60
+-- REFERENCIA DIRECTA AL RATÓN PARA CLICK TO TP
+local MouseNativo = LP:GetMouse()
 local sosteniendoT = false
 
--- INTERFAZ GRÁFICA
-local G = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+-- INTERFAZ ORIGINAL REPARADA
+local G = Instance.new("ScreenGui", LP:WaitForChild("PlayerGui"))
 G.Name = "ToroHub" G.ResetOnSpawn = false
 
 local M = Instance.new("Frame", G)
@@ -53,7 +35,7 @@ Pack.Size, Pack.Position, Pack.BackgroundTransparency = UDim2.new(1,0,1,-40), UD
 local Lst = Instance.new("UIListLayout", Pack) Lst.Padding = UDim.new(0,5)
 Lst.HorizontalAlignment, Lst.VerticalAlignment = Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center
 
--- ARRASTRE
+-- SISTEMA DE ARRASTRE
 local drag, dragI, start, sPos
 M.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then drag, start, sPos = true, i.Position, M.Position end end)
 M.InputChanged:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseMovement then dragI = i end end)
@@ -66,12 +48,12 @@ local function getRoot(character)
     return character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")
 end
 
--- TARGETING
+-- TARGETING (AIMBOT)
 function GetT()
     local obj, maxD, mP = nil, math.huge, UIS:GetMouseLocation()
-    for _,v in pairs(Players:GetPlayers()) do 
-        if v ~= LocalPlayer and v.Character and getRoot(v.Character) and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
-            local p, onS = Camera:WorldToScreenPoint(getRoot(v.Character).Position)
+    for _,v in pairs(P:GetPlayers()) do 
+        if v ~= LP and v.Character and getRoot(v.Character) and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
+            local p, onS = Cam:WorldToScreenPoint(getRoot(v.Character).Position)
             if onS then 
                 local d = (Vector2.new(mP.X, mP.Y) - Vector2.new(p.X, p.Y)).Magnitude
                 if d < maxD then maxD, obj = d, getRoot(v.Character) end 
@@ -80,30 +62,7 @@ function GetT()
     end; return obj 
 end
 
--- OPTIMIZADOR INTEGRAL DE FPS
-local function AplicarOptimizarMundo(Activar)
-    pcall(function()
-        if Activar then
-            Lighting.FogEnd, Lighting.FogStart = 999999, 999999
-            for _, e in pairs(Lighting:GetChildren()) do if e:IsA("Clouds") or e:IsA("BlurEffect") or e:IsA("SunRaysEffect") or e:IsA("BloomEffect") then e.Enabled = false end end
-            for _, o in pairs(workspace:GetDescendants()) do
-                if not o:IsDescendantOf(LocalPlayer.Character) and not Players:GetPlayerFromCharacter(o.Parent) then
-                    if o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Smoke") or o:IsA("Sparkles") then o.Enabled = false 
-                    elseif o:IsA("Decal") or o:IsA("Texture") then if o.Name ~= "face" and not o.Parent:IsA("Shirt") and not o.Parent:IsA("Pants") then o.Transparency = 1 end end
-                end
-            end
-        else
-            Lighting.FogEnd, Lighting.FogStart = oFogEnd, oFogStart
-            for _, e in pairs(Lighting:GetChildren()) do if e:IsA("Clouds") or e:IsA("BlurEffect") or e:IsA("SunRaysEffect") or e:IsA("BloomEffect") then e.Enabled = true end end
-            for _, o in pairs(workspace:GetDescendants()) do
-                if o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Smoke") or o:IsA("Sparkles") then o.Enabled = true 
-                elseif o:IsA("Decal") or o:IsA("Texture") then if o.Name ~= "face" then o.Transparency = 0 end end
-            end
-        end
-    end)
-end
-
--- BOTONES
+-- CREADOR DE BOTONES
 local function cBtn(k, txt, func)
     local b = Instance.new("TextButton", Pack)
     b.Size, b.BackgroundColor3 = UDim2.new(0,190,0,32), Color3.fromRGB(40,40,40)
@@ -113,66 +72,64 @@ local function cBtn(k, txt, func)
         cfg[k] = not cfg[k]
         if cfg[k] then 
             b.Text, b.BackgroundColor3, b.TextColor3 = txt..": ON", Color3.fromRGB(45,140,45), Color3.fromRGB(255,255,255)
-            if k == "FullBright" then AplicarOptimizarMundo(true) end
             if func then func() b.Text, b.BackgroundColor3, b.TextColor3 = txt..": OFF", Color3.fromRGB(40,40,40), Color3.fromRGB(220,60,60) cfg[k] = false end
         else 
             b.Text, b.BackgroundColor3, b.TextColor3 = txt..": OFF", Color3.fromRGB(40,40,40), Color3.fromRGB(220,60,60) 
-            if k == "FullBright" then AplicarOptimizarMundo(false) end
             if k == "Aimbot" then lock, targ = false, nil end
         end
     end)
 end
 
 cBtn("Aimbot", "🎯 Permitir Aimbot")
-cBtn("FullBright", "💡 Iluminación + FPS")
+cBtn("FullBright", "💡 FullBright")
 cBtn("ESP", "👁️ Ver Jugadores (ESP)")
 cBtn("Fly", "🦅 Vuelo (Fly)")
 cBtn("Teleport", "🌀 Teleport Cercano", function()
-    local o = GetT() if o and getRoot(LocalPlayer.Character) then getRoot(LocalPlayer.Character).CFrame = o.CFrame * CFrame.new(0,4,0) end
+    local o = GetT() if o and getRoot(LP.Character) then getRoot(LP.Character).CFrame = o.CFrame * CFrame.new(0,4,0) end
 end)
 
--- INPUTS GENERALES
+-- ENTRADAS DE TECLADO Y CLICK TO TP
 UIS.InputBegan:Connect(function(i,p) 
     if not p then 
-        if i.KeyCode == TeclaAimbot and cfg.Aimbot then 
+        if i.KeyCode == Enum.KeyCode.F and cfg.Aimbot then 
             lock = not lock; if not lock then targ = nil end 
-        elseif i.KeyCode == TeclaOcultarMenu then 
+        elseif i.KeyCode == Enum.KeyCode.KeypadThree then 
             open = not open; G.Enabled = open 
-        elseif i.KeyCode == TeclaClickToTeleport then
+        elseif i.KeyCode == Enum.KeyCode.T then
             sosteniendoT = true
         elseif i.UserInputType == Enum.UserInputType.MouseButton1 and sosteniendoT then
             pcall(function()
-                if getRoot(LocalPlayer.Character) and MouseNativo.Hit then
-                    getRoot(LocalPlayer.Character).CFrame = CFrame.new(MouseNativo.Hit.Position + Vector3.new(0, 3, 0))
+                if getRoot(LP.Character) and MouseNativo.Hit then
+                    getRoot(LP.Character).CFrame = CFrame.new(MouseNativo.Hit.Position + Vector3.new(0, 3, 0))
                 end
             end)
         end 
     end 
 end)
 
-UIS.InputEnded:Connect(function(i) if i.KeyCode == TeclaClickToTeleport then sosteniendoT = false end end)
+UIS.InputEnded:Connect(function(i) if i.KeyCode == Enum.KeyCode.T then sosteniendoT = false end end)
 
--- FLY ESTÁTICO (SIN ANIMACIONES)
+-- SISTEMA FLY ESTÁTICO COMPATIBLE
 task.spawn(function()
     while true do
-        local dt = RunService.Heartbeat:Wait()
+        local dt = RS.Heartbeat:Wait()
         if cfg.Fly then
             pcall(function()
-                local hrp, hum = getRoot(LocalPlayer.Character), LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                local hrp, hum = getRoot(LP.Character), LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
                 if hrp and hum then
                     hum.PlatformStand = true
                     local dir = Vector3.new(0,0,0)
-                    if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + Camera.CFrame.LookVector end
-                    if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - Camera.CFrame.LookVector end
-                    if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - Camera.CFrame.RightVector end
-                    if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + Camera.CFrame.RightVector end
-                    hrp.CFrame = CFrame.new(hrp.Position + (dir * flySpeed * dt), hrp.Position + Camera.CFrame.LookVector * 100)
+                    if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + Cam.CFrame.LookVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - Cam.CFrame.LookVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - Cam.CFrame.RightVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + Cam.CFrame.RightVector end
+                    hrp.CFrame = CFrame.new(hrp.Position + (dir * flySpeed * dt), hrp.Position + Cam.CFrame.LookVector * 100)
                     hrp.Velocity = Vector3.new(0,0,0)
                 end
             end)
         else
             pcall(function()
-                local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
                 if hum and hum.PlatformStand then hum.PlatformStand = false end
             end)
         end
@@ -180,12 +137,27 @@ task.spawn(function()
 end)
 
 -- BUCLE DE RENDERIZADO PRINCIPAL
-local fL = Instance.new("PointLight", Camera) fL.Range, fL.Brightness, fL.Enabled = 10000, 3, false
-RunService.RenderStepped:Connect(function()
+local fL = Instance.new("PointLight", Cam) fL.Range, fL.Brightness, fL.Enabled = 10000, 3, false
+RS.RenderStepped:Connect(function()
     pcall(function()
         if cfg.Aimbot and lock then 
             if not targ or not targ.Parent or not targ.Parent:FindFirstChild("Humanoid") or targ.Parent.Humanoid.Health <= 0 then targ = GetT() end
-            if targ then Camera.CFrame = CFrame.new(Camera.CFrame.Position, targ.Position) end 
+            if targ then Cam.CFrame = CFrame.new(Cam.CFrame.Position, targ.Position) end 
         else targ = nil end
         
         fL.Enabled = cfg.FullBright
+        if cfg.FullBright then L.GlobalShadows, L.Ambient = false, Color3.fromRGB(255,255,255) else L.GlobalShadows, L.Ambient = oS, oA end
+        
+        for _,v in pairs(P:GetPlayers()) do 
+            if v ~= LP and v.Character then 
+                local h = v.Character:FindFirstChild("ESPHl")
+                if cfg.ESP then 
+                    if not h and getRoot(v.Character) then 
+                        h = Instance.new("Highlight", v.Character) h.Name = "ESPHl"
+                        h.FillColor, h.FillTransparency, h.OutlineColor, h.DepthMode = Color3.fromRGB(255,0,0), 0.5, Color3.fromRGB(255,255,255), Enum.HighlightDepthMode.AlwaysOnTop
+                    end
+                else if h then h:Destroy() end end 
+            end 
+        end
+    end)
+end)
