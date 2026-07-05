@@ -11,7 +11,9 @@ local oS, oA = L.GlobalShadows, L.Ambient
 local oFogEnd, oFogStart = L.FogEnd, L.FogStart
 local flySpeed = 60
 
--- INTERFAZ COMPACTA
+-- ESTADOS PARA CLICK TO TP VINCULADO
+local sosteniendoT = false
+
 local G = Instance.new("ScreenGui", LP:WaitForChild("PlayerGui"))
 G.Name = "ToroHub" G.ResetOnSpawn = false
 
@@ -20,7 +22,7 @@ M.Size, M.Position, M.BackgroundColor3, M.Active = UDim2.new(0,220,0,320), UDim2
 Instance.new("UICorner", M).CornerRadius = UDim.new(0,8)
 
 local T = Instance.new("TextLabel", M)
-T.Size, T.Text, T.BackgroundColor3, T.TextColor3, T.Font, T.TextSize = UDim2.new(1,-40,0,35), "⚡ TORO HUB V9 ⚡", Color3.fromRGB(30,30,30), Color3.fromRGB(255,255,255), Enum.Font.SourceSansBold, 14
+T.Size, T.Text, T.BackgroundColor3, T.TextColor3, T.Font, T.TextSize = UDim2.new(1,-40,0,35), "⚡ TORO HUB V10 ⚡", Color3.fromRGB(30,30,30), Color3.fromRGB(255,255,255), Enum.Font.SourceSansBold, 14
 Instance.new("UICorner", T).CornerRadius = UDim.new(0,8)
 
 local X = Instance.new("TextButton", M)
@@ -33,14 +35,12 @@ Pack.Size, Pack.Position, Pack.BackgroundTransparency = UDim2.new(1,0,1,-40), UD
 local Lst = Instance.new("UIListLayout", Pack) Lst.Padding = UDim.new(0,5)
 Lst.HorizontalAlignment, Lst.VerticalAlignment = Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center
 
--- ARRASTRE DEL PANEL
 local drag, dragI, start, sPos
 M.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then drag, start, sPos = true, i.Position, M.Position end end)
 M.InputChanged:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseMovement then dragI = i end end)
 UIS.InputChanged:Connect(function(i) if i == dragI and drag then local d = i.Position-start; M.Position = UDim2.new(sPos.X.Scale, sPos.X.Offset+d.X, sPos.Y.Scale, sPos.Y.Offset+d.Y) end end)
 UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = false end end)
 
--- DETECTOR DE OBJETIVOS (AIMBOT)
 function GetT()
     local obj, maxD, mP = nil, math.huge, UIS:GetMouseLocation()
     for _,v in pairs(P:GetPlayers()) do 
@@ -54,7 +54,6 @@ function GetT()
     end; return obj 
 end
 
--- OPTIMIZACIÓN FILTRADA DEL MUNDO
 local function AplicarOptimizarMundo(Activar)
     pcall(function()
         if Activar then
@@ -77,7 +76,6 @@ local function AplicarOptimizarMundo(Activar)
     end)
 end
 
--- CREACIÓN DE BOTONES
 local function cBtn(k, txt, func)
     local b = Instance.new("TextButton", Pack)
     b.Size, b.BackgroundColor3 = UDim2.new(0,190,0,32), Color3.fromRGB(40,40,40)
@@ -100,53 +98,74 @@ end
 cBtn("Aimbot", "🎯 Permitir Aimbot")
 cBtn("FullBright", "💡 Iluminación + FPS")
 cBtn("ESP", "👁️ Ver Jugadores (ESP)")
-cBtn("Fly", "🦅 Vuelo (Fly)")
+cBtn("Fly", "🦅 Vuelo + Animaciones")
 cBtn("Teleport", "🌀 Teleport Cercano", function()
     local o = GetT() if o and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then LP.Character.HumanoidRootPart.CFrame = o.CFrame * CFrame.new(0,4,0) end
 end)
 
--- ACCIONES DE TECLADO
+-- ACCIONES DE TECLADO Y CLICK TO TP (LETRA T)
 UIS.InputBegan:Connect(function(i,p) 
     if not p then 
         if i.KeyCode == Enum.KeyCode.F and cfg.Aimbot then 
             lock = not lock; if not lock then targ = nil end 
         elseif i.KeyCode == Enum.KeyCode.KeypadThree then 
             open = not open; G.Enabled = open 
+        elseif i.KeyCode == Enum.KeyCode.T then
+            sosteniendoT = true
+        elseif i.UserInputType == Enum.UserInputType.MouseButton1 and sosteniendoT then
+            -- LÓGICA DE TELEPORTACIÓN POR CLIC
+            pcall(function()
+                local mouse = LP:GetMouse()
+                if mouse.Target and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+                    LP.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.Position + Vector3.new(0, 3, 0))
+                end
+            end)
         end 
     end 
 end)
 
--- SISTEMA FLY INDEPENDIENTE (CON TACTO ULTRA SUAVE PARA XENO)
+UIS.InputEnded:Connect(function(i)
+    if i.KeyCode == Enum.KeyCode.T then
+        sosteniendoT = false
+    end
+end)
+
+-- BUCLE FLY CON ANIMACIONES (MÉTODO POR VELOCIDAD CORPORAL INTEGRADO)
 task.spawn(function()
     while true do
-        local dt = RS.Heartbeat:Wait()
-        if cfg.Fly then
-            pcall(function()
-                local char = LP.Character
-                if char then
-                    local hrp = char:FindFirstChild("HumanoidRootPart")
-                    local hum = char:FindFirstChildOfClass("Humanoid")
-                    if hrp and hum then
-                        hum.PlatformStand = true
-                        local dir = Vector3.new(0,0,0)
-                        if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + Cam.CFrame.LookVector end
-                        if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - Cam.CFrame.LookVector end
-                        if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - Cam.CFrame.RightVector end
-                        if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + Cam.CFrame.RightVector end
-                        hrp.CFrame = CFrame.new(hrp.Position + (dir * flySpeed * dt), hrp.Position + Cam.CFrame.LookVector * 100)
-                        hrp.Velocity = Vector3.new(0,0,0)
-                    end
+        RS.Heartbeat:Wait()
+        pcall(function()
+            local char = LP.Character
+            if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChildOfClass("Humanoid") then
+                local hrp = char.HumanoidRootPart
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                
+                if cfg.Fly then
+                    local bv = hrp:FindFirstChild("ToroFlyBV") or Instance.new("BodyVelocity", hrp)
+                    bv.Name = "ToroFlyBV"
+                    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                    
+                    local bg = hrp:FindFirstChild("ToroFlyBG") or Instance.new("BodyGyro", hrp)
+                    bg.Name = "ToroFlyBG"
+                    bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+                    
+                    -- Al apagar el PlatformStand, Roblox reacciona activando animaciones físicas de movimiento
+                    hum.PlatformStand = false
+                    
+                    local dir = Vector3.new(0,0,0)
+                    if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + Cam.CFrame.LookVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - Cam.CFrame.LookVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - Cam.CFrame.RightVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + Cam.CFrame.RightVector end
+                    
+                    bv.Velocity = dir * flySpeed
+                    bg.CFrame = Cam.CFrame
+                else
+                    if hrp:FindFirstChild("ToroFlyBV") then hrp.ToroFlyBV:Destroy() end
+                    if hrp:FindFirstChild("ToroFlyBG") then hrp.ToroFlyBG:Destroy() end
                 end
-            end)
-        else
-            pcall(function()
-                local char = LP.Character
-                if char then
-                    local hum = char:FindFirstChildOfClass("Humanoid")
-                    if hum and hum.PlatformStand then hum.PlatformStand = false end
-                end
-            end)
-        end
+            end
+        end)
     end
 end)
 
@@ -170,12 +189,3 @@ RS.RenderStepped:Connect(function()
             if v ~= LP and v.Character then 
                 local h = v.Character:FindFirstChild("ESPHl")
                 if cfg.ESP then 
-                    if not h then 
-                        h = Instance.new("Highlight", v.Character) h.Name = "ESPHl"
-                        h.FillColor, h.FillTransparency, h.OutlineColor, h.DepthMode = Color3.fromRGB(255,0,0), 0.5, Color3.fromRGB(255,255,255), Enum.HighlightDepthMode.AlwaysOnTop 
-                    end
-                else if h then h:Destroy() end end 
-            end 
-        end
-    end)
-end)
