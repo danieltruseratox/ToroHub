@@ -161,6 +161,7 @@ local function CrearToggle(NombreConfig, TextoBoton)
     end)
 end
 
+-- Creamos los botones en la interfaz
 CrearToggle("Aimbot", "🎯 Habilitar Aimbot")
 CrearToggle("FullBright", "💡 FullBright")
 CrearToggle("ESP", "👁️ Ver Jugadores (ESP)")
