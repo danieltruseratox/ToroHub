@@ -11,6 +11,7 @@ local oS, oA = L.GlobalShadows, L.Ambient
 local oFogEnd, oFogStart = L.FogEnd, L.FogStart
 local flySpeed = 60
 
+-- ESTADOS PARA CLICK TO TP VINCULADO
 local sosteniendoT = false
 
 local G = Instance.new("ScreenGui", LP:WaitForChild("PlayerGui"))
@@ -21,7 +22,7 @@ M.Size, M.Position, M.BackgroundColor3, M.Active = UDim2.new(0,220,0,320), UDim2
 Instance.new("UICorner", M).CornerRadius = UDim.new(0,8)
 
 local T = Instance.new("TextLabel", M)
-T.Size, T.Text, T.BackgroundColor3, T.TextColor3, T.Font, T.TextSize = UDim2.new(1,-40,0,35), "⚡ TORO HUB V11 ⚡", Color3.fromRGB(30,30,30), Color3.fromRGB(255,255,255), Enum.Font.SourceSansBold, 14
+T.Size, T.Text, T.BackgroundColor3, T.TextColor3, T.Font, T.TextSize = UDim2.new(1,-40,0,35), "⚡ TORO HUB V10 ⚡", Color3.fromRGB(30,30,30), Color3.fromRGB(255,255,255), Enum.Font.SourceSansBold, 14
 Instance.new("UICorner", T).CornerRadius = UDim.new(0,8)
 
 local X = Instance.new("TextButton", M)
@@ -97,11 +98,12 @@ end
 cBtn("Aimbot", "🎯 Permitir Aimbot")
 cBtn("FullBright", "💡 Iluminación + FPS")
 cBtn("ESP", "👁️ Ver Jugadores (ESP)")
-cBtn("Fly", "🦅 Vuelo (Fly)")
+cBtn("Fly", "🦅 Vuelo + Animaciones")
 cBtn("Teleport", "🌀 Teleport Cercano", function()
     local o = GetT() if o and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then LP.Character.HumanoidRootPart.CFrame = o.CFrame * CFrame.new(0,4,0) end
 end)
 
+-- ACCIONES DE TECLADO Y CLICK TO TP (LETRA T)
 UIS.InputBegan:Connect(function(i,p) 
     if not p then 
         if i.KeyCode == Enum.KeyCode.F and cfg.Aimbot then 
@@ -111,6 +113,7 @@ UIS.InputBegan:Connect(function(i,p)
         elseif i.KeyCode == Enum.KeyCode.T then
             sosteniendoT = true
         elseif i.UserInputType == Enum.UserInputType.MouseButton1 and sosteniendoT then
+            -- LÓGICA DE TELEPORTACIÓN POR CLIC
             pcall(function()
                 local mouse = LP:GetMouse()
                 if mouse.Target and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
@@ -122,42 +125,51 @@ UIS.InputBegan:Connect(function(i,p)
 end)
 
 UIS.InputEnded:Connect(function(i)
-    if i.KeyCode == Enum.KeyCode.T then sosteniendoT = false end
-end)
-
-task.spawn(function()
-    while true do
-        local dt = RS.Heartbeat:Wait()
-        if cfg.Fly then
-            pcall(function()
-                local char = LP.Character
-                if char then
-                    local hrp = char:FindFirstChild("HumanoidRootPart")
-                    local hum = char:FindFirstChildOfClass("Humanoid")
-                    if hrp and hum then
-                        hum.PlatformStand = true
-                        local dir = Vector3.new(0,0,0)
-                        if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + Cam.CFrame.LookVector end
-                        if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - Cam.CFrame.LookVector end
-                        if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - Cam.CFrame.RightVector end
-                        if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + Cam.CFrame.RightVector end
-                        hrp.CFrame = CFrame.new(hrp.Position + (dir * flySpeed * dt), hrp.Position + Cam.CFrame.LookVector * 100)
-                        hrp.Velocity = Vector3.new(0,0,0)
-                    end
-                end
-            end)
-        else
-            pcall(function()
-                local char = LP.Character
-                if char then
-                    local hum = char:FindFirstChildOfClass("Humanoid")
-                    if hum and hum.PlatformStand then hum.PlatformStand = false end
-                end
-            end)
-        end
+    if i.KeyCode == Enum.KeyCode.T then
+        sosteniendoT = false
     end
 end)
 
+-- BUCLE FLY CON ANIMACIONES (MÉTODO POR VELOCIDAD CORPORAL INTEGRADO)
+task.spawn(function()
+    while true do
+        RS.Heartbeat:Wait()
+        pcall(function()
+            local char = LP.Character
+            if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChildOfClass("Humanoid") then
+                local hrp = char.HumanoidRootPart
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                
+                if cfg.Fly then
+                    local bv = hrp:FindFirstChild("ToroFlyBV") or Instance.new("BodyVelocity", hrp)
+                    bv.Name = "ToroFlyBV"
+                    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                    
+                    local bg = hrp:FindFirstChild("ToroFlyBG") or Instance.new("BodyGyro", hrp)
+                    bg.Name = "ToroFlyBG"
+                    bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+                    
+                    -- Al apagar el PlatformStand, Roblox reacciona activando animaciones físicas de movimiento
+                    hum.PlatformStand = false
+                    
+                    local dir = Vector3.new(0,0,0)
+                    if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + Cam.CFrame.LookVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - Cam.CFrame.LookVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - Cam.CFrame.RightVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + Cam.CFrame.RightVector end
+                    
+                    bv.Velocity = dir * flySpeed
+                    bg.CFrame = Cam.CFrame
+                else
+                    if hrp:FindFirstChild("ToroFlyBV") then hrp.ToroFlyBV:Destroy() end
+                    if hrp:FindFirstChild("ToroFlyBG") then hrp.ToroFlyBG:Destroy() end
+                end
+            end
+        end)
+    end
+end)
+
+-- BUCLE PRINCIPAL (AIMBOT, LIGHTING Y ESP)
 local fL = Instance.new("PointLight", Cam) fL.Range, fL.Brightness, fL.Enabled = 10000, 3, false
 RS.RenderStepped:Connect(function()
     pcall(function()
@@ -177,12 +189,3 @@ RS.RenderStepped:Connect(function()
             if v ~= LP and v.Character then 
                 local h = v.Character:FindFirstChild("ESPHl")
                 if cfg.ESP then 
-                    if not h then 
-                        h = Instance.new("Highlight", v.Character) h.Name = "ESPHl"
-                        h.FillColor, h.FillTransparency, h.OutlineColor, h.DepthMode = Color3.fromRGB(255,0,0), 0.5, Color3.fromRGB(255,255,255), Enum.HighlightDepthMode.AlwaysOnTop 
-                    end
-                else if h then h:Destroy() end end 
-            end 
-        end
-    end)
-end)
