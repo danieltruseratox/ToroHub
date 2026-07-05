@@ -1,167 +1,245 @@
+=============================================================================
+-- ████████╗ ██████╗ ██████╗  ██████╗     ██╗  ██╗██╗   ██╗██████╗
+-- ╚══██╔══╝██╔═══██╗██╔══██╗██╔═══██╗    ██║  ██║██║   ██║██╔══██╗
+--    ██║   ██║   ██║██████╔╝██║   ██║    ███████║██║   ██║██████╔╝
+--    ██║   ██║   ██║██╔══██╗██║   ██║    ██╔══██║██║   ██║██╔══██╗
+--    ██║   ╚██████╔╝██║  ██║╚██████╔╝    ██║  ██║╚██████╔╝██████║
+--    ╚═╝    ╚═════╝ ╚═╝  ╚═╝ ╚═════╝     ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝
 -- =============================================================================
--- SCRIPT AVANZADO: FLING AUTOMÁTICO AL OBJETIVO + ANTI-FLING PASIVO
--- =============================================================================
--- Activa el ataque al enemigo más cercano presionando la tecla: 'X'
+-- Desarrollado y optimizado específicamente para Xeno Launcher.
+-- Estructura modular asíncrona libre de recortes o lag por sobrecarga.
 
+-- SERVICIOS NATIVOS DE ROBLOX
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
+local Lighting = game:GetService("Lighting")
 local UserInputService = game:GetService("UserInputService")
 
-local player = Players.LocalPlayer
-local camera = workspace.CurrentCamera
-local TeclaAtaque = Enum.KeyCode.X
+-- VARIABLES INTERNAS DEL JUGADOR LOCAL Y CÁMARA
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local VirtualMouse = LocalPlayer:GetMouse()
 
-local BucleAntiFling = nil
-local Atacando = false
+-- TABLA DE CONFIGURACIONES GENERALES (ESTADOS DE INTERRUPTORES)
+local HubConfig = {
+    AimbotHabilitado = false,
+    FullBrightHabilitado = false,
+    ESPHabilitado = false,
+    FlyHabilitado = false
+}
 
--- 1. DETECTOR SEGURO DE EXTREMIDADES (De tu guía)
-local function getRoot(character)
-    if not character then return nil end
-    return character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")
+-- CONFIGURACIONES INTERNAS Y CONTROL DE TECLAS
+local AimbotFijadoActivo = false
+local ObjetivoActualAimbot = nil
+local MenuAbierto = true
+
+local TeclaOcultarMenu = Enum.KeyCode.KeypadThree -- Numeral 3 derecho
+local TeclaFijacionAimbot = Enum.KeyCode.F      -- Letra F para el candado
+local TeclaClickToTeleport = Enum.KeyCode.T     -- Letra T para TP por clic
+
+-- ALMACENAMIENTO DE VALORES ORIGINALES DEL SERVIDOR (Para restauración limpia)
+local OriginalGlobalShadows = Lighting.GlobalShadows
+local OriginalAmbient = Lighting.Ambient
+local OriginalOutdoorAmbient = Lighting.OutdoorAmbient
+local OriginalFogEnd = Lighting.FogEnd
+local OriginalFogStart = Lighting.FogStart
+
+local VelocidadVueloFija = 60
+local EstadoSosteniendoTeclaT = false
+
+--------------------------------------------------------------------------------
+-- 1. CONSTRUCCIÓN DE INTERFAZ GRÁFICA COMPLETA Y DETALLADA (GUI)
+--------------------------------------------------------------------------------
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ToroHubPremiumGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 230, 0, 320)
+MainFrame.Position = UDim2.new(0.05, 0, 0.3, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.Parent = MainFrame
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Size = UDim2.new(1, -40, 0, 40)
+TitleLabel.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+TitleLabel.Text = "⚡ TORO HUB UNIVERSAL ⚡"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.TextSize = 14
+TitleLabel.Parent = MainFrame
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 8)
+TitleCorner.Parent = TitleLabel
+
+-- BOTÓN DE DESTRUCCIÓN DEL SCRIPT (X)
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0, 40, 0, 40)
+CloseButton.Position = UDim2.new(1, -40, 0, 0)
+CloseButton.BackgroundColor3 = Color3.fromRGB(170, 35, 35)
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.Font = Enum.Font.SourceSansBold
+CloseButton.TextSize = 15
+CloseButton.Parent = MainFrame
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 8)
+CloseCorner.Parent = CloseButton
+
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+local ButtonsContainer = Instance.new("Frame")
+ButtonsContainer.Name = "ButtonsContainer"
+ButtonsContainer.Size = UDim2.new(1, 0, 1, -45)
+ButtonsContainer.Position = UDim2.new(0, 0, 0, 45)
+ButtonsContainer.BackgroundTransparency = 1
+ButtonsContainer.Parent = MainFrame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Padding = UDim.new(0, 6)
+UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+UIListLayout.Parent = ButtonsContainer
+
+--------------------------------------------------------------------------------
+-- 2. SISTEMA MODERNO DE ARRASTRE DE MENÚ (DRAG)
+--------------------------------------------------------------------------------
+local IsDraggingMenu = false
+local InputDragStart, DragStartFramePos
+
+local function UpdateMenuPosition(input)
+    local DeltaMovement = input.Position - InputDragStart
+    MainFrame.Position = UDim2.new(
+        DragStartFramePos.X.Scale, 
+        DragStartFramePos.X.Offset + DeltaMovement.X, 
+        DragStartFramePos.Y.Scale, 
+        DragStartFramePos.Y.Offset + DeltaMovement.Y
+    )
 end
 
--- 2. BUSCADOR DE OBJETIVO MÁS CERCANO A LA MIRA
-local function ObtenerEnemigoCercano()
-    local objetivo = nil
-    local maxDistancia = math.huge
-    local mousePos = UserInputService:GetMouseLocation()
-
-    for _, v in pairs(Players:GetPlayers()) do
-        if v ~= player and v.Character then
-            local root = getRoot(v.Character)
-            local hum = v.Character:FindFirstChild("Humanoid")
-            if root and hum and hum.Health > 0 then
-                local pos, enPantalla = camera:WorldToScreenPoint(root.Position)
-                if enPantalla then
-                    local dist = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(pos.X, pos.Y)).Magnitude
-                    if dist < maxDistancia then
-                        maxDistancia = dist
-                        objetivo = root
-                    end
-                end
-            end
-        end
-    end
-    return objetivo
-end
-
--- 3. ANTI-FLING PASIVO CONSTANTE (Inmunidad a colisiones)
-local function IniciarAntiFling()
-    if BucleAntiFling then BucleAntiFling:Disconnect() end
-    BucleAntiFling = RunService.Stepped:Connect(function()
-        pcall(function()
-            if player.Character and not Atacando then
-                -- Desactiva colisiones del cuerpo para que otros flings no te afecten
-                for _, parte in pairs(player.Character:GetChildren()) do
-                    if parte:IsA("BasePart") then
-                        parte.CanCollide = false
-                    end
-                end
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        IsDraggingMenu = true
+        InputDragStart = input.Position
+        DragStartFramePos = MainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                IsDraggingMenu = false
             end
         end)
-    end)
-end
-
--- 4. FUNCIONES DE SPIN (Giro de tu guía)
-local function spinCharacter(spinSpeed)
-    local root = getRoot(player.Character)
-    if not root then return end
-    for _, child in pairs(root:GetChildren()) do
-        if child.Name == "Spinning" then child:Destroy() end
-    end
-    local Spin = Instance.new("BodyAngularVelocity")
-    Spin.Name = "Spinning"
-    Spin.Parent = root
-    Spin.MaxTorque = Vector3.new(0, math.huge, 0)
-    Spin.AngularVelocity = Vector3.new(0, spinSpeed, 0)
-    task.wait(0.1)
-end
-
-local function unspin()
-    local root = getRoot(player.Character)
-    if not root then return end
-    for _, child in pairs(root:GetChildren()) do
-        if child.Name == "Spinning" then
-            child:Destroy()
-            task.wait(0.05)
-        end
-    end
-end
-
--- 5. SIMULADOR DE PRESIONAR TECLAS (De tu guía)
-local function holdKey(key, hold)
-    VirtualInputManager:SendKeyEvent(hold, key, false, game)
-    task.wait(0.05)
-end
-
--- 6. EFECTO DE ÓRBITA LOCA DE CÁMARA (De tu guía)
-local function crazyCameraOrbit(duration)
-    local root = getRoot(player.Character)
-    if not root then return end
-    local startTime = tick()
-    local origCFrame = camera.CFrame
-    while tick() - startTime < duration do
-        local elapsed = tick() - startTime
-        local x = math.cos(elapsed * 30) * 15 
-        local y = math.sin(elapsed * 50) * 8 + 5 
-        local z = math.sin(elapsed * 25) * 15 
-        local jitterX = (math.sin(elapsed * 60) * 2)
-        local jitterY = (math.cos(elapsed * 70) * 2)
-        local jitterZ = (math.sin(elapsed * 55) * 2)
-        local offset = Vector3.new(x + jitterX, y + jitterY, z + jitterZ)
-        camera.CFrame = CFrame.new(root.Position + offset, root.Position)
-        RunService.RenderStepped:Wait()
-    end
-    camera.CFrame = origCFrame
-end
-
--- 7. EJECUCIÓN DEL FLING AGRESIVO DIRIGIDO
-local function EjecutarFling()
-    if Atacando then return end
-    
-    local root = getRoot(player.Character)
-    local objetivo = ObtenerEnemigoCercano()
-    
-    if not root or not objetivo then 
-        print("❌ No se encontró ningún enemigo cercano para lanzarlo.")
-        return 
-    end
-    
-    Atacando = true
-    local posicionOriginal = root.CFrame -- Guarda tu posición para regresar
-    
-    pcall(function()
-        -- Se teletransporta pegado a la víctima
-        root.CFrame = objetivo.CFrame * CFrame.new(0, 0, 1)
-        task.wait(0.1)
-        
-        -- Ejecuta la secuencia exacta de tu guía
-        holdKey(Enum.KeyCode.LeftControl, true) -- ShiftLock simulado
-        holdKey(Enum.KeyCode.C, true)           -- Gatear simulado
-        task.wait(0.3) 
-        
-        spinCharacter(300)       -- Activa el giro
-        crazyCameraOrbit(2)      -- Desata la cámara loca por 2 segundos sobre la víctima
-        unspin()                 -- Detiene el giro
-        
-        holdKey(Enum.KeyCode.C, false)
-        holdKey(Enum.KeyCode.LeftControl, false)
-        task.wait(0.1)
-    end)
-    
-    -- Te regresa al lugar seguro original de forma limpia
-    root.CFrame = posicionOriginal
-    Atacando = false
-    print("🎯 Fling ejecutado correctamente. Regresando a zona segura.")
-end
-
--- INICIADORES DE TECLADO Y PROTECCIÓN
-UserInputService.InputBegan:Connect(function(input, procesado)
-    if procesado then return end
-    if input.KeyCode == TeclaAtaque then
-        task.spawn(EjecutarFling)
     end
 end)
 
+MainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        if IsDraggingMenu then
+            UpdateMenuPosition(input)
+        end
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- 3. FUNCIÓN CREADORA DE INTERRUPTORES (TOGGLES DINÁMICOS)
+--------------------------------------------------------------------------------
+local function CrearBotonToggle(ConfigKey, TextoVisible, FuncionAlActivar)
+    local TextButton = Instance.new("TextButton")
+    TextButton.Size = UDim2.new(0, 200, 0, 35)
+    TextButton.BackgroundColor3 = Color3.fromRGB(38, 38, 38)
+    TextButton.Text = TextoVisible .. ": OFF"
+    TextButton.TextColor3 = Color3.fromRGB(210, 55, 55)
+    TextButton.Font = Enum.Font.SourceSansBold
+    TextButton.TextSize = 13
+    TextButton.Parent = ButtonsContainer
+
+    local ButtonCorner = Instance.new("UICorner")
+    ButtonCorner.CornerRadius = UDim.new(0, 6)
+    ButtonCorner.Parent = TextButton
+
+    TextButton.MouseButton1Click:Connect(function()
+        HubConfig[ConfigKey] = not HubConfig[ConfigKey]
+        
+        if HubConfig[ConfigKey] then
+            TextButton.Text = TextoVisible .. ": ON"
+            TextButton.BackgroundColor3 = Color3.fromRGB(40, 130, 40)
+            TextButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+            
+            if ConfigKey == "FullBrightHabilitado" then
+                pcall(function() FuncionAlActivar(true) end)
+            elseif FuncionAlActivar then
+                -- Para funciones instantáneas como el Teleport de un clic
+                pcall(FuncionAlActivar)
+                HubConfig[ConfigKey] = false
+                TextButton.Text = TextoVisible .. ": OFF"
+                TextButton.BackgroundColor3 = Color3.fromRGB(38, 38, 38)
+                TextButton.TextColor3 = Color3.fromRGB(210, 55, 55)
+            end
+        else
+            TextButton.Text = TextoVisible .. ": OFF"
+            TextButton.BackgroundColor3 = Color3.fromRGB(38, 38, 38)
+            TextButton.TextColor3 = Color3.fromRGB(210, 55, 55)
+            
+            if ConfigKey == "FullBrightHabilitado" then
+                pcall(function() FuncionAlActivar(false) end)
+            elseif ConfigKey == "AimbotHabilitado" then
+                AimbotFijadoActivo = false
+                ObjetivoActualAimbot = nil
+            end
+        end
+    end)
+end
+
+--------------------------------------------------------------------------------
+-- 4. ALGORITMOS DE DETECCIÓN MATEMÁTICA (TARGETING)
+--------------------------------------------------------------------------------
+function ObtenerJugadorMasCercanoAlCursor()
+    local ObjetivoSeleccionado = nil
+    local DistanciaMenorRegistrada = math.huge
+    local CoordenadasMouse = UserInputService:GetMouseLocation()
+
+    for _, Jugador in pairs(Players:GetPlayers()) do
+        if Jugador ~= LocalPlayer and Jugador.Character then
+            local RootPart = Jugador.Character:FindFirstChild("HumanoidRootPart")
+            local Humanoid = Jugador.Character:FindFirstChild("Humanoid")
+            
+            if RootPart and Humanoid and Humanoid.Health > 0 then
+                local PosicionPantalla, EnPantalla = Camera:WorldToScreenPoint(RootPart.Position)
+                
+                if EnPantalla then
+                    local CalculoDistancia = (Vector2.new(CoordenadasMouse.X, CoordenadasMouse.Y) - Vector2.new(PosicionPantalla.X, PosicionPantalla.Y)).Magnitude
+                    if CalculoDistancia < DistanciaMenorRegistrada then
+                        DistanciaMenorRegistrada = CalculoDistancia
+                        ObjetivoSeleccionado = RootPart
+                    end
+                end
+            end
+        end
+    end
+    return ObjetivoSeleccionado
+end
+
+--------------------------------------------------------------------------------
+-- 5. OPTIMIZADOR PROGRESIVO DE RENDIMIENTO DEL ENTORNO (FPS)
+--------------------------------------------------------------------------------
+local function AlternarOptimizacionMundo(Habilitar)
+    if Habilitar then
+        Lighting.FogEnd = 999999
+        Lighting.FogStart = 999999
+        
+        for _, Efecto in pairs(Lighting:GetChildren()) do
 pcall(IniciarAntiFling)
