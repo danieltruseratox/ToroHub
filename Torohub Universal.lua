@@ -236,6 +236,8 @@ end
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ToroHubUniversalGui"
 ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.DisplayOrder = 999
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local Window = Instance.new("Frame")
@@ -520,9 +522,8 @@ footerLabel.TextColor3 = themePalette[config.Theme].Text
 footerLabel.TextXAlignment = Enum.TextXAlignment.Center
 
 CloseButton.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-    Lighting.GlobalShadows = originalLighting.GlobalShadows
-    Lighting.Ambient = originalLighting.Ambient
+    state.UIOpen = false
+    ScreenGui.Enabled = false
 end)
 
 -- Dragging
@@ -712,7 +713,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if not state.AimbotLocked then
             activeTarget = nil
         end
-    elseif input.KeyCode == toggleKeys.HideMenu then
+    elseif input.KeyCode == toggleKeys.HideMenu or input.KeyCode == Enum.KeyCode.Three then
         state.UIOpen = not state.UIOpen
         ScreenGui.Enabled = state.UIOpen
     elseif input.KeyCode == toggleKeys.ClickToTP then
