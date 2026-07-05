@@ -6,18 +6,18 @@
 --    ██║   ╚██████╔╝██║  ██║╚██████╔╝    ██║  ██║╚██████╔╝██║  ██║
 --    ╚═╝    ╚═════╝ ╚═╝  ╚═╝ ╚═════╝     ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝
 -- =============================================================================
--- CODIFICACIÓN NUEVA: SISTEMA DE LÍNEAS DE TEXTO INTERACTIVAS (ANTI-BLOQUEO XENO)
 
 local ServJugadores = game:GetService("Players")
 local ServEntradas = game:GetService("UserInputService")
 local ServIluminacion = game:GetService("Lighting")
 local ServBucle = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local Yo = ServJugadores.LocalPlayer
 local CamaraMundo = workspace.CurrentCamera
 local MouseJugador = Yo:GetMouse()
 
--- CONTROLADOR DE FUNCIONES INTERNAS (NUEVO FORMATO DE MATRIZ)
+-- CONTROLADOR DE ESTADOS SINCRO
 local Interruptores = {
     ["Aimbot"] = false,
     ["FullBright"] = false,
@@ -29,52 +29,76 @@ local CandadoMira = false
 local VictimaFijada = nil
 local TeclaT_Presionada = false
 
--- BACKUPS DE ILUMINACIÓN NATIVA
 local RespShadows = ServIluminacion.GlobalShadows
 local RespAmbient = ServIluminacion.Ambient
 
 --------------------------------------------------------------------------------
--- 1. ESTRUCTURA VISUAL PLANA (SISTEMA DE TEXTO DIRECTO)
+-- 1. DISEÑO DE INTERFAZ: FORMATO NEÓN GLOW
 --------------------------------------------------------------------------------
 local CapaGui = Instance.new("ScreenGui", Yo:WaitForChild("PlayerGui"))
-CapaGui.Name = "ToroHubTextEdition"
+CapaGui.Name = "ToroHubNeonEdition"
 CapaGui.ResetOnSpawn = false
 
+-- Marco principal del menú (Fondo Oscuro Premium)
 local VentanaFondo = Instance.new("Frame", CapaGui)
-VentanaFondo.Size = UDim2.new(0, 240, 0, 240)
+VentanaFondo.Size = UDim2.new(0, 240, 0, 260)
 VentanaFondo.Position = UDim2.new(0.05, 0, 0.25, 0)
-VentanaFondo.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-VentanaFondo.BorderSizePixel = 1
-VentanaFondo.BorderColor3 = Color3.fromRGB(40, 40, 40)
+VentanaFondo.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+VentanaFondo.BorderSizePixel = 0
 VentanaFondo.Active = true
-VentanaFondo.Draggable = true -- Habilitado por contingencia de inyección
+VentanaFondo.Draggable = true
+VentanaFondo.ZIndex = 1
 
+local MainCorner = Instance.new("UICorner", VentanaFondo)
+MainCorner.CornerRadius = UDim.new(0, 8)
+
+-- Línea de contorno Neón (Efecto Resplandor)
+local NeonBorder = Instance.new("Frame", VentanaFondo)
+NeonBorder.Size = UDim2.new(1, 2, 1, 2)
+NeonBorder.Position = UDim2.new(0, -1, 0, -1)
+NeonBorder.BackgroundColor3 = Color3.fromRGB(0, 255, 150) -- Verde Neón
+NeonBorder.ZIndex = 0
+
+local BorderCorner = Instance.new("UICorner", NeonBorder)
+BorderCorner.CornerRadius = UDim.new(0, 9)
+
+-- Encabezado del Menú
 local BarraSuperior = Instance.new("Frame", VentanaFondo)
-BarraSuperior.Size = UDim2.new(1, 0, 0, 30)
-BarraSuperior.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+BarraSuperior.Size = UDim2.new(1, 0, 0, 35)
+BarraSuperior.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
 BarraSuperior.BorderSizePixel = 0
+BarraSuperior.ZIndex = 2
+
+local TopCorner = Instance.new("UICorner", BarraSuperior)
+TopCorner.CornerRadius = UDim.new(0, 8)
 
 local TextoTitulo = Instance.new("TextLabel", BarraSuperior)
-TextoTitulo.Size = UDim2.new(1, -35, 1, 0)
+TextoTitulo.Size = UDim2.new(1, -45, 1, 0)
 TextoTitulo.BackgroundTransparency = 1
-TextoTitulo.Text = "  TORO HUB V13 [TEXT EDIT]"
-TextoTitulo.TextColor3 = Color3.fromRGB(240, 240, 240)
-TextoTitulo.Font = Enum.Font.Code
-TextoTitulo.TextSize = 13
+TextoTitulo.Text = "  TORO HUB — NEÓN V13"
+TextoTitulo.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextoTitulo.Font = Enum.Font.SourceSansBold
+TextoTitulo.TextSize = 14
 TextoTitulo.TextXAlignment = Enum.TextXAlignment.Left
+TextoTitulo.ZIndex = 3
 
 local BotonCerrar = Instance.new("TextButton", BarraSuperior)
-BotonCerrar.Size = UDim2.new(0, 30, 1, 0)
-BotonCerrar.Position = UDim2.new(1, -30, 0, 0)
-BotonCierre.BackgroundTransparency = 1 or BotonCerrar
-BotonCerrar.Text = "[X]"
-BotonCerrar.TextColor3 = Color3.fromRGB(200, 50, 50)
-BotonCerrar.Font = Enum.Font.Code
-BotonCerrar.TextSize = 13
+BotonCerrar.Size = UDim2.new(0, 30, 0, 30)
+BotonCerrar.Position = UDim2.new(1, -35, 0, 2)
+BotonCerrar.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+BotonCerrar.Text = "✕"
+BotonCerrar.TextColor3 = Color3.fromRGB(150, 150, 160)
+BotonCerrar.Font = Enum.Font.SourceSansBold
+BotonCerrar.TextSize = 12
+BotonCerrar.ZIndex = 3
+
+local CloseCorner = Instance.new("UICorner", BotonCerrar)
+CloseCorner.CornerRadius = UDim.new(0, 6)
+
 BotonCerrar.MouseButton1Click:Connect(function() CapaGui:Destroy() end)
 
 --------------------------------------------------------------------------------
--- 2. ENRUTADOR SEGURO DE EXTREMIDADES
+-- 2. RAÍZ DE EXTREMIDADES (TARGETING)
 --------------------------------------------------------------------------------
 local function LocalizarCentro(modelo)
     if not modelo then return nil end
@@ -104,38 +128,73 @@ local function RastrearObjetivoCursor()
 end
 
 --------------------------------------------------------------------------------
--- 3. PROCESADOR DE OPCIONES (NUEVO MÉTODO DE ENLACE DE TEXTO INTERACTIVO)
+-- 3. INTERRUPTORES DE FORMATO MODERNO (SLIDERS FILTRADOS)
 --------------------------------------------------------------------------------
-local function CrearTextoInteractivo(LlaveConfig, EtiquetaNombre, DesplazamientoY)
-    local LabelBoton = Instance.new("TextButton", VentanaFondo)
-    LabelBoton.Size = UDim2.new(1, -20, 0, 30)
-    LabelBoton.Position = UDim2.new(0, 10, 0, DesplazamientoY)
-    LabelBoton.BackgroundTransparency = 1
-    LabelBoton.Text = "-> " .. EtiquetaNombre .. ": [DESACTIVADO]"
-    LabelBoton.TextColor3 = Color3.fromRGB(180, 50, 50)
-    LabelBoton.Font = Enum.Font.Code
-    LabelBoton.TextSize = 13
-    LabelBoton.TextXAlignment = Enum.TextXAlignment.Left
+local function CrearComponenteNeon(LlaveConfig, EtiquetaNombre, DesplazamientoY)
+    -- Contenedor de la opción
+    local FilaContenedor = Instance.new("Frame", VentanaFondo)
+    FilaContenedor.Size = UDim2.new(1, -20, 0, 40)
+    FilaContenedor.Position = UDim2.new(0, 10, 0, DesplazamientoY)
+    FilaContenedor.BackgroundTransparency = 1
+    FilaContenedor.ZIndex = 2
 
-    LabelBoton.MouseButton1Click:Connect(function()
+    -- Texto descriptor de la opción
+    local TextoOpcion = Instance.new("TextLabel", FilaContenedor)
+    TextoOpcion.Size = UDim2.new(1, -60, 1, 0)
+    TextoOpcion.BackgroundTransparency = 1
+    TextoOpcion.Text = EtiquetaNombre
+    TextoOpcion.TextColor3 = Color3.fromRGB(180, 180, 190)
+    TextoOpcion.Font = Enum.Font.SourceSansSemibold
+    TextoOpcion.TextSize = 14
+    TextoOpcion.TextXAlignment = Enum.TextXAlignment.Left
+    TextoOpcion.ZIndex = 3
+
+    -- Switch deslizable (Fondo del toggle)
+    local SwitchFondo = Instance.new("TextButton", FilaContenedor)
+    SwitchFondo.Size = UDim2.new(0, 44, 0, 22)
+    SwitchFondo.Position = UDim2.new(1, -44, 0, 9)
+    SwitchFondo.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+    SwitchFondo.Text = ""
+    SwitchFondo.ZIndex = 3
+
+    local SwitchCorner = Instance.new("UICorner", SwitchFondo)
+    SwitchCorner.CornerRadius = UDim.new(1, 0)
+
+    -- Botón circular interno deslizable
+    local CirculoIndicador = Instance.new("Frame", SwitchFondo)
+    CirculoIndicador.Size = UDim2.new(0, 16, 0, 16)
+    CirculoIndicador.Position = UDim2.new(0, 3, 0, 3)
+    CirculoIndicador.BackgroundColor3 = Color3.fromRGB(150, 150, 160)
+    CirculoIndicador.BorderSizePixel = 0
+    CirculoIndicador.ZIndex = 4
+
+    local CirculoCorner = Instance.new("UICorner", CirculoIndicador)
+    CirculoCorner.CornerRadius = UDim.new(1, 0)
+
+    -- Animación y Cambio de Estados
+    SwitchFondo.MouseButton1Click:Connect(function()
         Interruptores[LlaveConfig] = not Interruptores[LlaveConfig]
         
         if Interruptores[LlaveConfig] then
-            LabelBoton.Text = "-> " .. EtiquetaNombre .. ": [ACTIVADO]"
-            LabelBoton.TextColor3 = Color3.fromRGB(50, 180, 50)
+            -- ON: Animación hacia la derecha con tono verde Neón
+            TweenService:Create(SwitchFondo, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 180, 100)}):Play()
+            TweenService:Create(CirculoIndicador, TweenInfo.new(0.2), {Position = UDim2.new(0, 25, 0, 3), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+            TextoOpcion.TextColor3 = Color3.fromRGB(240, 240, 240)
         else
-            LabelBoton.Text = "-> " .. EtiquetaNombre .. ": [DESACTIVADO]"
-            LabelBoton.TextColor3 = Color3.fromRGB(180, 50, 50)
+            -- OFF: Regresa a la izquierda con tono neutro oscuro
+            TweenService:Create(SwitchFondo, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(35, 35, 40)}):Play()
+            TweenService:Create(CirculoIndicador, TweenInfo.new(0.2), {Position = UDim2.new(0, 3, 0, 3), BackgroundColor3 = Color3.fromRGB(150, 150, 160)}):Play()
+            TextoOpcion.TextColor3 = Color3.fromRGB(180, 180, 190)
             if LlaveConfig == "Aimbot" then CandadoMira, VictimaFijada = false, nil end
         end
     end)
 end
 
--- Inyección de opciones sobre coordenadas planas fijas sin Layouts intermediarios
-CrearTextoInteractivo("Aimbot", "Fijar Aimbot Inteligente", 45)
-CrearTextoInteractivo("FullBright", "Anular Sombras y Niebla", 85)
-CrearTextoInteractivo("ESP", "Efecto Silueta de Jugadores", 125)
-CrearTextoInteractivo("ClickToTP", "Teleportar por Clic (Tecla T)", 165)
+-- Lista estructurada en formato Neón
+CrearComponenteNeon("Aimbot", "🎯 Sistema Aimbot Inteligente", 50)
+CrearComponenteNeon("FullBright", "💡 Iluminación + Modo FPS", 100)
+CrearComponenteNeon("ESP", "👁️ Rastreador Visual (ESP)", 150)
+CrearComponenteNeon("ClickToTP", "🌀 Teleportar por Clic (Tecla T)", 200)
 
 --------------------------------------------------------------------------------
 -- 4. CAPTURA SEPARADA DE EVENTOS FISICOS (ENTRADAS)
@@ -146,13 +205,14 @@ ServEntradas.InputBegan:Connect(function(tecla, juegoProcesado)
     if tecla.KeyCode == Enum.KeyCode.F and Interruptores["Aimbot"] then
         CandadoMira = not CandadoMira
         if not CandadoMira then VictimaFijada = nil end
-    elseif tecla.KeyCode == Enum.KeyCode.KeypadThree then
+    elseif tecla.KeyCode == TeclaOcultarMenu then
         VentanaFondo.Visible = not VentanaFondo.Visible
+        NeonBorder.Visible = VentanaFondo.Visible
     elseif tecla.KeyCode == Enum.KeyCode.T then
         TeclaT_Presionada = true
     elseif tecla.UserInputType == Enum.UserInputType.MouseButton1 and TeclaT_Presionada and Interruptores["ClickToTP"] then
         pcall(function()
-            local torsoYo = LocalizarCentro(Yo.Character)
+            local torsoYo = LocalizerCentro(Yo.Character)
             if torsoYo and MouseJugador.Hit then
                 torsoYo.CFrame = CFrame.new(MouseJugador.Hit.Position + Vector3.new(0, 3, 0))
             end
@@ -164,57 +224,3 @@ ServEntradas.InputEnded:Connect(function(tecla)
     if tecla.KeyCode == Enum.KeyCode.T then TeclaT_Presionada = false end
 end)
 
---------------------------------------------------------------------------------
--- 5. SUB-PROCESOS ASÍNCRONOS INDEPENDIENTES (ANTI-LAG)
---------------------------------------------------------------------------------
-
--- Hilo Aimbot
-task.spawn(function()
-    while true do
-        ServBucle.RenderStepped:Wait()
-        if Interruptores["Aimbot"] and CandadoMira then
-            pcall(function()
-                if not VictimaFijada or not VictimaFijada.Parent or not VictimaFijada.Parent:FindFirstChildOfClass("Humanoid") or VictimaFijada.Parent:FindFirstChildOfClass("Humanoid").Health <= 0 then
-                    VictimaFijada = RastrearObjetivoCursor()
-                end
-                if VictimaFijada then
-                    CamaraMundo.CFrame = CFrame.new(CamaraMundo.CFrame.Position, VictimaFijada.Position)
-                end
-            end)
-        end
-    end
-end)
-
--- Hilo FullBright de Iluminación Local
-local LamparaVirtual = Instance.new("PointLight", CamaraMundo)
-LamparaVirtual.Range, LamparaVirtual.Brightness, LamparaVirtual.Enabled = 10000, 3, false
-
-task.spawn(function()
-    while true do
-        task.wait(0.2)
-        pcall(function()
-            LamparaVirtual.Enabled = Interruptores["FullBright"]
-            if Interruptores["FullBright"] then
-                if ServIluminacion.GlobalShadows ~= false then ServIluminacion.GlobalShadows = false end
-                if ServIluminacion.Ambient ~= Color3.fromRGB(255, 255, 255) then ServIluminacion.Ambient = Color3.fromRGB(255, 255, 255) end
-            else
-                if ServIluminacion.GlobalShadows ~= RespShadows then ServIluminacion.GlobalShadows = RespShadows end
-                if ServIluminacion.Ambient ~= RespAmbient then ServIluminacion.Ambient = RespAmbient end
-            end
-        end)
-    end
-end)
-
--- Hilo ESP de Siluetas Asíncronas
-task.spawn(function()
-    while true do
-        task.wait(0.3)
-        pcall(function()
-            for _, jugador in pairs(ServJugadores:GetPlayers()) do
-                if jugador ~= Yo and jugador.Character then
-                    local resalte = jugador.Character:FindFirstChild("ToroHl")
-                    if Interruptores["ESP"] then
-                        if not resalte and LocalizarCentro(jugador.Character) then
-                            resalte = Instance.new("Highlight", jugador.Character)
-                            resalte.Name = "ToroHl"
-                            resalte.FillColor = Color3.fromRGB(255, 0, 0)
