@@ -11,11 +11,9 @@ local oS, oA = L.GlobalShadows, L.Ambient
 local oFogEnd, oFogStart = L.FogEnd, L.FogStart
 local flySpeed = 60
 
--- REFERENCIA DIRECTA AL RATÓN CLÁSICO PARA EL CLICK TO TP
 local MouseNativo = LP:GetMouse()
 local sosteniendoT = false
 
--- INTERFAZ COMPACTA
 local G = Instance.new("ScreenGui", LP:WaitForChild("PlayerGui"))
 G.Name = "ToroHub" G.ResetOnSpawn = false
 
@@ -105,7 +103,6 @@ cBtn("Teleport", "🌀 Teleport Cercano", function()
     local o = GetT() if o and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then LP.Character.HumanoidRootPart.CFrame = o.CFrame * CFrame.new(0,4,0) end
 end)
 
--- CAPTURA DE ENTRADAS Y TELEPORTACIÓN CON LETRA T SOTENIDA + UN CLICK
 UIS.InputBegan:Connect(function(i,p) 
     if not p then 
         if i.KeyCode == Enum.KeyCode.F and cfg.Aimbot then 
@@ -117,7 +114,6 @@ UIS.InputBegan:Connect(function(i,p)
         elseif i.UserInputType == Enum.UserInputType.MouseButton1 and sosteniendoT then
             pcall(function()
                 if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") and MouseNativo.Hit then
-                    -- Usa las coordenadas exactas de profundidad del ratón nativo de Roblox
                     LP.Character.HumanoidRootPart.CFrame = CFrame.new(MouseNativo.Hit.Position + Vector3.new(0, 3, 0))
                 end
             end)
@@ -129,7 +125,7 @@ UIS.InputEnded:Connect(function(i)
     if i.KeyCode == Enum.KeyCode.T then sosteniendoT = false end
 end)
 
--- SISTEMA FLY INDEPENDIENTE
+-- SISTEMA FLY SIN ANIMACIONES POR REESCRITURA DE CFRAME LÓGICO
 task.spawn(function()
     while true do
         local dt = RS.Heartbeat:Wait()
@@ -140,7 +136,7 @@ task.spawn(function()
                     local hrp = char:FindFirstChild("HumanoidRootPart")
                     local hum = char:FindFirstChildOfClass("Humanoid")
                     if hrp and hum then
-                        hum.PlatformStand = true
+                        hum.PlatformStand = true -- Fuerza al personaje a mantenerse rígido, quitando animaciones
                         local dir = Vector3.new(0,0,0)
                         if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + Cam.CFrame.LookVector end
                         if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - Cam.CFrame.LookVector end
@@ -163,7 +159,6 @@ task.spawn(function()
     end
 end)
 
--- BUCLE PRINCIPAL (RECONSTRUIDO PARA EVITAR COMPORTAMIENTOS ERRÁTICOS)
 local fL = Instance.new("PointLight", Cam) fL.Range, fL.Brightness, fL.Enabled = 10000, 3, false
 RS.RenderStepped:Connect(function()
     pcall(function()
@@ -172,7 +167,6 @@ RS.RenderStepped:Connect(function()
             if targ then Cam.CFrame = CFrame.new(Cam.CFrame.Position, targ.Position) end 
         else targ = nil end
         
-        -- FULLBRIGHT CON SECUENCIA CONTROLADA PARA XENO
         fL.Enabled = cfg.FullBright
         if cfg.FullBright then 
             L.GlobalShadows = false
@@ -182,12 +176,19 @@ RS.RenderStepped:Connect(function()
             L.Ambient = oA
         end
         
-        -- GESTIÓN DINÁMICA DE ESP HIGHLIGHTS
         for _,v in pairs(P:GetPlayers()) do 
             if v ~= LP and v.Character then 
                 local h = v.Character:FindFirstChild("ESPHl")
                 if cfg.ESP then 
-                    -- Si está activo y no existe el efecto, lo adjunta forzando el modo de renderizado superior
                     if not h and v.Character:FindFirstChild("HumanoidRootPart") then 
                         h = Instance.new("Highlight")
                         h.Name = "ESPHl"
+                        h.FillColor = Color3.fromRGB(255,0,0)
+                        h.FillTransparency = 0.5
+                        h.OutlineColor = Color3.fromRGB(255,255,255)
+                        h.OutlineTransparency = 0
+                        h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                        h.Adornee = v.Character
+                        h.Parent = v.Character
+                    end
+                else 
