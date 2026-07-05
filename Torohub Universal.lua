@@ -705,6 +705,11 @@ RunService.RenderStepped:Connect(function()
 end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == toggleKeys.HideMenu or input.KeyCode == Enum.KeyCode.Three then
+        state.UIOpen = not state.UIOpen
+        ScreenGui.Enabled = state.UIOpen
+        return
+    end
     if gameProcessed then
         return
     end
@@ -713,9 +718,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if not state.AimbotLocked then
             activeTarget = nil
         end
-    elseif input.KeyCode == toggleKeys.HideMenu or input.KeyCode == Enum.KeyCode.Three then
-        state.UIOpen = not state.UIOpen
-        ScreenGui.Enabled = state.UIOpen
     elseif input.KeyCode == toggleKeys.ClickToTP then
         state.HoldingTeleport = true
     elseif input.UserInputType == Enum.UserInputType.MouseButton1 and state.HoldingTeleport and config.ClickToTP then
