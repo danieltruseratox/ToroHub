@@ -12,13 +12,13 @@ local cfg = {
     Aimbot = false,
     FullBright = false,
     ESP = false,
-    ClickToTP = false
+    ClickToTP = false,
+    ClickToTPMode = "ToClick" -- "ToClick" or "ToPlayer"
 }
 
 local lock = false
 local target = nil
 local menuOpen = true
-local holdingT = false
 
 local teclaOcultarMenu = Enum.KeyCode.KeypadThree
 local teclaAimbot = Enum.KeyCode.F
@@ -36,7 +36,7 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 240, 0, 250)
+MainFrame.Size = UDim2.new(0, 240, 0, 300) -- aumentado para espacio del botón de modo
 MainFrame.Position = UDim2.new(0.1, 0, 0.3, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
@@ -117,7 +117,7 @@ local function getRoot(character)
         or character:FindFirstChild("UpperTorso")
 end
 
-local function getClosestTarget()
+local function getClosestTargetToCursor()
     local mousePos = UserInputService:GetMouseLocation()
     local closest = nil
     local bestDist = math.huge
@@ -140,6 +140,28 @@ local function getClosestTarget()
         end
     end
 
+    return closest
+end
+
+local function getClosestPlayerOverall()
+    local myRoot = getRoot(LocalPlayer.Character)
+    if not myRoot then return nil end
+
+    local closest = nil
+    local bestDist = math.huge
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            local root = getRoot(player.Character)
+            if humanoid and humanoid.Health > 0 and root then
+                local dist = (myRoot.Position - root.Position).Magnitude
+                if dist < bestDist then
+                    bestDist = dist
+                    closest = root
+                end
+            end
+        end
+    end
     return closest
 end
 
@@ -172,19 +194,41 @@ local function createToggleButton(configKey, text, y)
             button.Text = text .. ": OFF"
             button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
             button.TextColor3 = Color3.fromRGB(200, 50, 50)
-
-            if configKey == "Aimbot" then
-                lock = false
-                target = nil
-            end
         end
     end)
+
+    return button
 end
 
 createToggleButton("Aimbot", "🎯 Habilitar Aimbot", 55)
 createToggleButton("FullBright", "💡 FullBright", 100)
 createToggleButton("ESP", "👁️ Ver Jugadores (ESP)", 145)
-createToggleButton("ClickToTP", "🌀 Click to TP (Tecla T)", 190)
+createToggleButton("ClickToTP", "🌀 Click to TP (Click/Player)", 190)
+
+-- Botón para cambiar modo de TP (ToClick <-> ToPlayer)
+local modeButton = Instance.new("TextButton")
+modeButton.Size = UDim2.new(0, 210, 0, 30)
+modeButton.Position = UDim2.new(0, 15, 0, 235)
+modeButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+modeButton.Text = "Modo TP: Posición (ToClick)"
+modeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+modeButton.Font = Enum.Font.SourceSans
+modeButton.TextSize = 14
+modeButton.Parent = MainFrame
+
+local modeCorner = Instance.new("UICorner")
+modeCorner.CornerRadius = UDim.new(0, 6)
+modeCorner.Parent = modeButton
+
+modeButton.MouseButton1Click:Connect(function()
+    if cfg.ClickToTPMode == "ToClick" then
+        cfg.ClickToTPMode = "ToPlayer"
+        modeButton.Text = "Modo TP: Jugador (ToPlayer)"
+    else
+        cfg.ClickToTPMode = "ToClick"
+        modeButton.Text = "Modo TP: Posición (ToClick)"
+    end
+end)
 
 --------------------------------------------------------------------------------
 -- Inputs
@@ -202,25 +246,37 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         menuOpen = not menuOpen
         ScreenGui.Enabled = menuOpen
 
-    elseif input.KeyCode == teclaClickToTeleport then
-        holdingT = true
+    elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+        -- CLICK TO TP principal: si está activo, al clickear hace la acción según el modo
+        if cfg.ClickToTP then
+            pcall(function()
+                local myRoot = getRoot(LocalPlayer.Character)
+                if not myRoot then return end
 
-    elseif input.UserInputType == Enum.UserInputType.MouseButton1 and holdingT and cfg.ClickToTP then
-        local characterRoot = getRoot(LocalPlayer.Character)
-        if characterRoot and Mouse.Hit then
-            characterRoot.CFrame = CFrame.new(Mouse.Hit.Position + Vector3.new(0, 3, 0))
+                if cfg.ClickToTPMode == "ToClick" then
+                    -- TP a la posición clickeada (si hay hit)
+                    if Mouse and Mouse.Hit then
+                        local pos = Mouse.Hit.Position + Vector3.new(0, 3, 0)
+                        myRoot.CFrame = CFrame.new(pos)
+                    end
+                else
+                    -- TP al jugador más cercano al cursor
+                    local tgtRoot = getClosestTargetToCursor()
+                    if not tgtRoot then
+                        -- fallback: el más cercano overall
+                        tgtRoot = getClosestPlayerOverall()
+                    end
+                    if tgtRoot and tgtRoot.Position then
+                        myRoot.CFrame = CFrame.new(tgtRoot.Position + Vector3.new(0, 3, 0))
+                    end
+                end
+            end)
         end
     end
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-    if input.KeyCode == teclaClickToTeleport then
-        holdingT = false
-    end
-end)
-
 --------------------------------------------------------------------------------
--- Effects
+-- Effects and Loop
 --------------------------------------------------------------------------------
 local fullBrightLight = Instance.new("PointLight")
 fullBrightLight.Range = 10000
@@ -233,7 +289,7 @@ RunService.RenderStepped:Connect(function()
         -- Aimbot
         if cfg.Aimbot and lock then
             if not target or not target.Parent or not target.Parent:FindFirstChildOfClass("Humanoid") or target.Parent.Humanoid.Health <= 0 then
-                target = getClosestTarget()
+                target = getClosestTargetToCursor()
             end
 
             if target then
