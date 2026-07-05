@@ -232,6 +232,13 @@ local function createSectionTitle(text, size, position, parent)
     return title
 end
 
+local function setUIOpen(value)
+    state.UIOpen = value
+    if ScreenGui then
+        ScreenGui.Enabled = state.UIOpen
+    end
+end
+
 -- UI principal
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ToroHubUniversalGui"
@@ -239,6 +246,7 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.DisplayOrder = 999
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.Enabled = state.UIOpen
 
 local Window = Instance.new("Frame")
 Window.Name = "Window"
@@ -522,8 +530,7 @@ footerLabel.TextColor3 = themePalette[config.Theme].Text
 footerLabel.TextXAlignment = Enum.TextXAlignment.Center
 
 CloseButton.MouseButton1Click:Connect(function()
-    state.UIOpen = false
-    ScreenGui.Enabled = false
+    setUIOpen(false)
 end)
 
 -- Dragging
@@ -706,8 +713,7 @@ end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if input.KeyCode == toggleKeys.HideMenu or input.KeyCode == Enum.KeyCode.Three then
-        state.UIOpen = not state.UIOpen
-        ScreenGui.Enabled = state.UIOpen
+        setUIOpen(not state.UIOpen)
         return
     end
     if gameProcessed then
